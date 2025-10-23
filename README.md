@@ -1,10 +1,10 @@
 # sl0ppy-UEFIScan
 # sl0ppy UEFI Scanner
 
-![GitHub release](https://img.shields.io/github/v/release/yourusername/sl0ppy-UefiScan)
-![GitHub license](https://img.shields.io/github/license/yourusername/sl0ppy-UefiScan)
-![GitHub stars](https://img.shields.io/github/stars/yourusername/sl0ppy-UefiScan)
-![GitHub issues](https://img.shields.io/github/issues/yourusername/sl0ppy-UefiScan)
+![GitHub release](https://img.shields.io/github/v/release/x0xr00t/sl0ppy-UEFIScan)
+![GitHub license](https://img.shields.io/github/license/x0xr00t/sl0ppy-UEFIScan)
+![GitHub stars](https://img.shields.io/github/stars/x0xr00t/sl0ppy-UEFIScan)
+![GitHub issues](https://img.shields.io/github/issues/x0xr00t/sl0ppy-UEFIScan)
 
 **Advanced UEFI Firmware Scanner with Auto-Updating Threat Intelligence**
 ```
@@ -235,7 +235,7 @@ The authors are not responsible for any misuse or damage caused by this program.
 ## 📬 Contact
 For questions, suggestions, or security reports:
 ```
-GitHub Issues: https://github.com/x0xr00t/sl0ppy-UefiScan/issues
+GitHub Issues: https://github.com/x0xr00t/sl0ppy-UEFIScan/issues
 ```
 
 
