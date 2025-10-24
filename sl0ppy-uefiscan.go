@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
@@ -20,7 +21,6 @@ import (
 
 // --- Color Scheme ---
 var (
-	// Primary colors
 	headerColor    = color.New(color.FgHiCyan, color.Bold)
 	sectionColor   = color.New(color.FgCyan, color.Bold)
 	infoColor      = color.New(color.FgHiBlue)
@@ -29,23 +29,21 @@ var (
 	criticalColor  = color.New(color.FgRed, color.Bold)
 	highlightColor = color.New(color.FgHiMagenta, color.Bold)
 	debugColor     = color.New(color.FgHiBlack)
-
-	// Status indicators
-	okStatus      = successColor.Sprintf("✓ OK")
-	warnStatus    = warningColor.Sprintf("⚠ WARNING")
-	critStatus    = criticalColor.Sprintf("✗ CRITICAL")
-	errorStatus   = criticalColor.Sprintf("✗ ERROR")
+	okStatus       = successColor.Sprintf("✓ OK")
+	warnStatus     = warningColor.Sprintf("⚠ WARNING")
+	critStatus     = criticalColor.Sprintf("✗ CRITICAL")
+	errorStatus    = criticalColor.Sprintf("✗ ERROR")
 )
 
 // --- Config ---
 const (
-	Version            = "1.0"
-	YaraRulesDir      = "/tmp/sl0ppy_yara_rules"
-	GitHubRulesRepo   = "https://raw.githubusercontent.com/Yara-Rules/rules/master"
-	MISPFeedURL       = "https://www.misp-project.org/feeds/yara"
-	LocalRulesFile    = "/etc/sl0ppy/yara_rules.custom"
-	RuleUpdateTimeout = 30 * time.Second
-	MaxRuleAge        = 24 * time.Hour
+	Version            = "2.1"
+	YaraRulesDir       = "/tmp/sl0ppy_yara_rules"
+	GitHubRulesRepo    = "https://raw.githubusercontent.com/Yara-Rules/rules/master"
+	MISPFeedURL        = "https://www.misp-project.org/feeds/yara"
+	LocalRulesFile     = "/etc/sl0ppy/yara_rules.custom"
+	RuleUpdateTimeout  = 30 * time.Second
+	MaxRuleAge         = 24 * time.Hour
 )
 
 // --- Structs ---
@@ -63,7 +61,7 @@ type MalwareSignature struct {
 	Pattern       string
 	Severity      string
 	Source        string
-	Category       string
+	Category      string
 	ConfirmationReq int
 	CVE           string
 	RuleFile      string
@@ -126,14 +124,14 @@ type VulnerabilityCheck struct {
 type Evidence struct {
 	Timestamp      string             `json:"timestamp"`
 	Hostname       string             `json:"hostname"`
-	Firmware       []FirmwareCheck     `json:"firmware"`
-	Malware        []MalwareCheck      `json:"malware"`
-	NVRAM          []NVRAMCheck        `json:"nvram"`
-	Hardware       HardwareCheck       `json:"hardware"`
+	Firmware       []FirmwareCheck    `json:"firmware"`
+	Malware        []MalwareCheck     `json:"malware"`
+	NVRAM          []NVRAMCheck       `json:"nvram"`
+	Hardware       HardwareCheck      `json:"hardware"`
 	Vulnerabilities []VulnerabilityCheck `json:"vulnerabilities"`
-	Recommendations []string           `json:"recommendations,omitempty"`
-	RulesUpdated   []string           `json:"rules_updated,omitempty"`
-	Version        string             `json:"version"`
+	Recommendations []string          `json:"recommendations,omitempty"`
+	RulesUpdated   []string          `json:"rules_updated,omitempty"`
+	Version        string            `json:"version"`
 }
 
 // --- Global Variables ---
@@ -152,14 +150,26 @@ var (
 		{Name: "UEFI Variable Authentication Bypass", CVE: "CVE-2022-28739", Severity: "CRITICAL", Fix: "Enable Secure Boot"},
 		{Name: "SPI Flash Protection Bypass", CVE: "CVE-2023-1109", Severity: "CRITICAL", Fix: "Enable BIOS write protection"},
 	}
+
+	githubYaraRules = []struct {
+		URL      string
+		Filename string
+	}{
+		{GitHubRulesRepo + "/malware/APT_LoJax.yar", "APT_LoJax.yar"},
+		{GitHubRulesRepo + "/malware/UEFI_MoonBounce.yar", "UEFI_MoonBounce.yar"},
+		{GitHubRulesRepo + "/malware/UEFI_FinFisher.yar", "UEFI_FinFisher.yar"},
+		{GitHubRulesRepo + "/malware/UEFI_ESPecter.yar", "UEFI_ESPecter.yar"},
+		{GitHubRulesRepo + "/malware/UEFI_BlackLotus.yar", "UEFI_BlackLotus.yar"},
+		{GitHubRulesRepo + "/malware/UEFI_MosaicRegressor.yar", "UEFI_MosaicRegressor.yar"},
+		{GitHubRulesRepo + "/malware/UEFI_VectorEDK.yar", "UEFI_VectorEDK.yar"},
+		{GitHubRulesRepo + "/malware/UEFI_EspionageBootkit.yar", "UEFI_EspionageBootkit.yar"},
+	}
 )
 
 // --- Main Function ---
 func main() {
-	// Print header with version
 	printHeader()
 
-	// Initialize evidence
 	evidence := Evidence{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Hostname:  getHostname(),
@@ -261,13 +271,10 @@ func printFooter() {
 // --- YARA Rule Management ---
 func updateYARARules() ([]string, error) {
 	var updatedSources []string
-
-	// Create rules directory if it doesn't exist
 	if err := os.MkdirAll(YaraRulesDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create rules directory: %v", err)
 	}
 
-	// Check if we need to update
 	needsUpdate, err := checkRuleFreshness()
 	if err != nil {
 		return nil, err
@@ -277,20 +284,8 @@ func updateYARARules() ([]string, error) {
 		return []string{"cached"}, nil
 	}
 
-	// Update from GitHub
-	githubRules := []struct {
-		URL      string
-		Filename string
-	}{
-		{GitHubRulesRepo + "/malware/APT_LoJax.yar", "APT_LoJax.yar"},
-		{GitHubRulesRepo + "/malware/UEFI_MoonBounce.yar", "UEFI_MoonBounce.yar"},
-		{GitHubRulesRepo + "/malware/UEFI_FinFisher.yar", "UEFI_FinFisher.yar"},
-		{GitHubRulesRepo + "/malware/UEFI_ESPecter.yar", "UEFI_ESPecter.yar"},
-		{GitHubRulesRepo + "/malware/UEFI_BlackLotus.yar", "UEFI_BlackLotus.yar"},
-	}
-
 	client := http.Client{Timeout: RuleUpdateTimeout}
-	for _, rule := range githubRules {
+	for _, rule := range githubYaraRules {
 		dest := filepath.Join(YaraRulesDir, rule.Filename)
 		if err := downloadWithClient(&client, rule.URL, dest); err != nil {
 			printStatus("WARNING", "Failed to update %s: %v", rule.Filename, err)
@@ -300,7 +295,6 @@ func updateYARARules() ([]string, error) {
 		}
 	}
 
-	// Update from MISP
 	mispFile := filepath.Join(YaraRulesDir, "misp_uefi_rules.yar")
 	if err := downloadWithClient(&client, MISPFeedURL, mispFile); err != nil {
 		printStatus("WARNING", "Failed to update MISP rules: %v", err)
@@ -309,7 +303,6 @@ func updateYARARules() ([]string, error) {
 		printStatus("INFO", "Updated MISP rules")
 	}
 
-	// Check for local custom rules
 	if _, err := os.Stat(LocalRulesFile); err == nil {
 		if err := copyFile(LocalRulesFile, filepath.Join(YaraRulesDir, "local_custom.yar")); err != nil {
 			printStatus("WARNING", "Failed to copy local rules: %v", err)
@@ -319,7 +312,7 @@ func updateYARARules() ([]string, error) {
 		}
 	}
 
-	// Add built-in rules
+	// Built-in rules
 	builtInRules := filepath.Join(YaraRulesDir, "built_in.yar")
 	builtInContent := `
 rule CriticalUEFIMalware {
@@ -331,6 +324,8 @@ rule CriticalUEFIMalware {
         $lojax2 = {48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 44 24}
         $moonbounce1 = {55 48 89 E5 48 83 EC 30}
         $moonbounce2 = {48 89 7D E8 48 89 55 E0}
+        $espionage1 = {48 8D 15 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 85 ?? ?? ?? ?? 48 8B 85 ?? ?? ?? ?? 48 85 C0 74 ?? 48 8B 0D ?? ?? ?? ?? 48 33 C9 E8 ?? ?? ?? ?? 48 85 C0 75 ?? 48 8B 05 ?? ?? ?? ?? 48 8B 00 48 85 C0 74 ?? FF 15}
+        $espionage2 = {48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 85 ?? ?? ?? ?? 48 8B 85 ?? ?? ?? ?? 48 85 C0 74 ?? 48 8B 0D ?? ?? ?? ?? 48 33 C9 E8 ?? ?? ?? ?? 48 85 C0 75 ?? 48 8B 05 ?? ?? ?? ?? 48 8B 00 48 85 C0 74 ?? FF 15}
     condition:
         any of them
 }
@@ -349,23 +344,19 @@ func downloadWithClient(client *http.Client, urlStr, dest string) error {
 	if err != nil {
 		return fmt.Errorf("bad request: %v", err)
 	}
-
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("download error: %v", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("server returned non-200 status: %d %s", resp.StatusCode, resp.Status)
 	}
-
 	outFile, err := os.Create(dest)
 	if err != nil {
 		return fmt.Errorf("create file error: %v", err)
 	}
 	defer outFile.Close()
-
 	_, err = io.Copy(outFile, resp.Body)
 	return err
 }
@@ -378,40 +369,45 @@ func checkRuleFreshness() (bool, error) {
 		}
 		return false, err
 	}
-
 	if len(entries) == 0 {
 		return true, nil
 	}
-
 	now := time.Now()
 	for _, e := range entries {
 		if !strings.HasSuffix(e.Name(), ".yar") {
 			continue
 		}
-
 		filePath := filepath.Join(YaraRulesDir, e.Name())
 		fi, err := os.Stat(filePath)
 		if err != nil {
 			continue
 		}
-
 		if now.Sub(fi.ModTime()) < MaxRuleAge {
 			return false, nil
 		}
 	}
-
 	return true, nil
 }
 
 func loadYARARules() ([]MalwareSignature, error) {
 	var rules []MalwareSignature
-
-	// Default built-in rules
 	defaultRules := []MalwareSignature{
-		{Name: "LoJax_Fallback", Pattern: `rule LoJax_Fallback {
-			strings: $a = {48 89 5C 24 F8 48 89 6C 24}
-			condition: $a
-		}`, Severity: "CRITICAL", Source: "Built-in", Category: "Bootkit", ConfirmationReq: 1},
+		{
+			Name: "LoJax_Fallback",
+			Pattern: `rule LoJax_Fallback {
+    meta:
+        description = "LoJax bootkit pattern"
+        author = "sl0ppy"
+    strings:
+        $a = {48 89 5C 24 F8 48 89 6C 24}
+    condition:
+        $a
+}`,
+			Severity:      "CRITICAL",
+			Source:        "Built-in",
+			Category:      "Bootkit",
+			ConfirmationReq: 1,
+		},
 	}
 
 	entries, err := os.ReadDir(YaraRulesDir)
@@ -423,20 +419,17 @@ func loadYARARules() ([]MalwareSignature, error) {
 		if !strings.HasSuffix(e.Name(), ".yar") {
 			continue
 		}
-
 		filePath := filepath.Join(YaraRulesDir, e.Name())
 		content, err := os.ReadFile(filePath)
 		if err != nil {
 			printStatus("WARNING", "Failed to read %s: %v", e.Name(), err)
 			continue
 		}
-
 		parsedRules, err := parseYARAFile(filePath, string(content))
 		if err != nil {
 			printStatus("WARNING", "Failed to parse %s: %v", e.Name(), err)
 			continue
 		}
-
 		rules = append(rules, parsedRules...)
 	}
 
@@ -451,19 +444,14 @@ func loadYARARules() ([]MalwareSignature, error) {
 func parseYARAFile(filePath, content string) ([]MalwareSignature, error) {
 	var rules []MalwareSignature
 	ruleBlocks := regexp.MustCompile(`rule\s+([^\s{]+)\s*{([^}]+)}`).FindAllStringSubmatch(content, -1)
-
 	for _, block := range ruleBlocks {
 		ruleName := strings.TrimSpace(block[1])
 		ruleContent := strings.TrimSpace(block[0])
-
-		// Initialize variables
 		severity := "HIGH"
 		category := "Malware"
 		confirmationReq := 1
 		cve := ""
 		lastUpdated := "unknown"
-
-		// Determine severity and category
 		lowerName := strings.ToLower(ruleName)
 		if strings.Contains(lowerName, "bootkit") {
 			category = "Bootkit"
@@ -482,34 +470,28 @@ func parseYARAFile(filePath, content string) ([]MalwareSignature, error) {
 			severity = "CRITICAL"
 			confirmationReq = 2
 		}
-
-		// Extract CVE if present
 		if strings.Contains(lowerName, "cve") {
 			cveMatch := regexp.MustCompile(`cve-?\d{4}-\d+`).FindString(lowerName)
 			if cveMatch != "" {
 				cve = strings.ToUpper(cveMatch)
 			}
 		}
-
-		// Get last modified time
 		fileInfo, err := os.Stat(filePath)
 		if err == nil {
 			lastUpdated = fileInfo.ModTime().Format(time.RFC3339)
 		}
-
 		rules = append(rules, MalwareSignature{
 			Name:          ruleName,
 			Pattern:       ruleContent,
 			Severity:      severity,
 			Source:        "AutoUpdated:" + filepath.Base(filePath),
-			Category:       category,
+			Category:      category,
 			ConfirmationReq: confirmationReq,
 			CVE:           cve,
 			RuleFile:      filePath,
 			LastUpdated:   lastUpdated,
 		})
 	}
-
 	return rules, nil
 }
 
@@ -532,7 +514,6 @@ func getHostname() string {
 
 // --- System Information ---
 func checkSystemInfo(evidence *Evidence) {
-	// Virtualization check
 	cmd := exec.Command("systemd-detect-virt")
 	output, err := cmd.Output()
 	if err == nil {
@@ -546,14 +527,12 @@ func checkSystemInfo(evidence *Evidence) {
 		}
 	}
 
-	// CPU info
 	cmd = exec.Command("lscpu")
 	output, err = cmd.Output()
 	if err == nil {
 		printStatus("INFO", "CPU Information:\n%s", strings.TrimSpace(string(output)))
 	}
 
-	// OS info
 	cmd = exec.Command("cat", "/etc/os-release")
 	output, err = cmd.Output()
 	if err == nil {
@@ -604,7 +583,6 @@ func checkFirmwareIntegrity(evidence *Evidence) {
 		})
 	}
 
-	// Check SPI flash protection
 	spiLock, err := checkSPILock()
 	if err != nil {
 		printStatus("WARNING", "SPI lock check failed: %v", err)
@@ -618,39 +596,33 @@ func checkFirmwareIntegrity(evidence *Evidence) {
 			"Enable BIOS write protection (SPI lock) to prevent firmware flashing attacks")
 	}
 
-	// Check for firmware updates
 	checkFirmwareUpdates(evidence)
 }
 
 func readAndHashRegion(start, end uint64) (string, error) {
-	// Try direct /dev/mem access first
 	data, err := readMemory(start, end)
 	if err == nil {
 		h := sha512.Sum512(data)
 		return hex.EncodeToString(h[:]), nil
 	}
 
-	// Fallback: Try reading via dmidecode
 	printStatus("WARNING", "Falling back to dmidecode for firmware reading...")
 	cmd := exec.Command("sudo", "dmidecode", "-t", "bios")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to read firmware via dmidecode: %v", err)
 	}
-
 	h := sha512.Sum512(output)
 	return hex.EncodeToString(h[:]), nil
 }
 
 func readMemory(start, end uint64) ([]byte, error) {
-	// Try with sudo dd first
 	cmd := exec.Command("sudo", "dd", "if=/dev/mem", fmt.Sprintf("bs=1"), fmt.Sprintf("skip=%d", start), fmt.Sprintf("count=%d", end-start), "status=none")
 	output, err := cmd.Output()
 	if err == nil {
 		return output, nil
 	}
 
-	// Fallback to direct file access
 	memFile, err := os.OpenFile("/dev/mem", os.O_RDONLY, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open /dev/mem: %v (try running with sudo)", err)
@@ -667,6 +639,7 @@ func readMemory(start, end uint64) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read memory: %v", err)
 	}
+
 	return data, nil
 }
 
@@ -715,6 +688,7 @@ func scanForThreats(evidence *Evidence, yaraRules []MalwareSignature) {
 			sig.Name, sig.Category, sig.Source, sig.LastUpdated)
 
 		indicators := 0
+		yaraDetected := false
 
 		// 1. YARA Scan
 		detected, err := scanWithYARA(sig.Pattern, "/sys/firmware/efi/efivars/")
@@ -723,11 +697,12 @@ func scanForThreats(evidence *Evidence, yaraRules []MalwareSignature) {
 			continue
 		}
 		if detected {
+			yaraDetected = true
 			indicators++
 		}
 
-		// 2. NVRAM Anomalies
-		if sig.Category == "Spyware" || sig.Category == "RAT" {
+		// 2. NVRAM Anomalies (only for Spyware/RAT)
+		if (sig.Category == "Spyware" || sig.Category == "RAT") && !yaraDetected {
 			for _, nvramVar := range getNVRAMVars() {
 				if nvramVar.Critical {
 					value, _ := readNVRAMVariable(nvramVar.Name)
@@ -739,8 +714,8 @@ func scanForThreats(evidence *Evidence, yaraRules []MalwareSignature) {
 			}
 		}
 
-		// 3. Suspicious Module Check
-		if sig.Category == "Rootkit" || sig.Category == "Bootkit" {
+		// 3. Suspicious Module Check (only for Rootkit/Bootkit)
+		if (sig.Category == "Rootkit" || sig.Category == "Bootkit") && !yaraDetected {
 			files, _ := filepath.Glob("/sys/firmware/efi/efivars/*smm*")
 			if len(files) > 0 {
 				indicators++
@@ -750,23 +725,26 @@ func scanForThreats(evidence *Evidence, yaraRules []MalwareSignature) {
 		// Determine confidence level
 		confidence := "Low"
 		detectedFinal := false
-		if indicators >= sig.ConfirmationReq {
+
+		if yaraDetected && indicators >= sig.ConfirmationReq {
 			confidence = "High"
 			detectedFinal = true
-		} else if indicators > 0 {
+		} else if yaraDetected || indicators > 0 {
 			confidence = "Medium"
 		}
 
+		// Log results
 		if detectedFinal {
 			printStatus("CRITICAL", "%s (%s, %s) detected! Confidence: %s (%d/%d indicators)",
 				sig.Name, sig.Category, sig.CVE, confidence, indicators, sig.ConfirmationReq)
-		} else if indicators > 0 {
+		} else if confidence == "Medium" {
 			printStatus("WARNING", "%s (%s, %s) possible! Confidence: %s (%d/%d indicators)",
 				sig.Name, sig.Category, sig.CVE, confidence, indicators, sig.ConfirmationReq)
 		} else {
 			printStatus("INFO", "%s (%s, %s): Not found", sig.Name, sig.Category, sig.CVE)
 		}
 
+		// Add to evidence
 		evidence.Malware = append(evidence.Malware, MalwareCheck{
 			Name:       sig.Name,
 			Detected:   detectedFinal,
@@ -782,12 +760,14 @@ func scanForThreats(evidence *Evidence, yaraRules []MalwareSignature) {
 }
 
 func scanWithYARA(rule, target string) (bool, error) {
+	// Create a temporary file for the YARA rule
 	ruleFile, err := os.CreateTemp("", "yara_rule_*.yar")
 	if err != nil {
 		return false, fmt.Errorf("failed to create temp YARA file: %v", err)
 	}
 	defer os.Remove(ruleFile.Name())
 
+	// Write the rule to the temporary file
 	_, err = ruleFile.WriteString(rule)
 	if err != nil {
 		ruleFile.Close()
@@ -795,16 +775,30 @@ func scanWithYARA(rule, target string) (bool, error) {
 	}
 	ruleFile.Close()
 
+	// Verify YARA is installed
+	if _, err := exec.LookPath("yara"); err != nil {
+		return false, fmt.Errorf("YARA is not installed. Install it with: sudo apt install yara")
+	}
+
+	// Execute the YARA command
 	cmd := exec.Command("yara", "-w", ruleFile.Name(), target)
-	output, err := cmd.CombinedOutput()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
 	if err != nil {
-		if strings.Contains(err.Error(), "exec: \"yara\": executable file not found") {
-			return false, fmt.Errorf("YARA is not installed. Install it with: sudo apt install yara")
+		exitError, ok := err.(*exec.ExitError)
+		if ok {
+			// YARA returns exit code 1 when no matches are found
+			if exitError.ExitCode() == 1 {
+				return false, nil
+			}
+			return false, fmt.Errorf("YARA scan failed with exit code %d: %s", exitError.ExitCode(), stderr.String())
 		}
 		return false, fmt.Errorf("YARA scan failed: %v", err)
 	}
 
-	return len(output) > 0, nil
+	return true, nil
 }
 
 // --- NVRAM Validation ---
@@ -834,7 +828,6 @@ func validateNVRAM(evidence *Evidence) {
 		value, err := readNVRAMVariable(nvramVar.Name)
 		status := "OK"
 		valid := true
-
 		if err != nil {
 			status = fmt.Sprintf("ERROR: %v", err)
 			valid = false
@@ -863,7 +856,6 @@ func validateNVRAM(evidence *Evidence) {
 				printStatus("INFO", "%s: '%s'", nvramVar.Name, value)
 			}
 		}
-
 		evidence.NVRAM = append(evidence.NVRAM, NVRAMCheck{
 			Name:     nvramVar.Name,
 			Value:    value,
@@ -872,7 +864,6 @@ func validateNVRAM(evidence *Evidence) {
 			Valid:    valid,
 		})
 	}
-
 	checkSecureBootVariables(evidence)
 }
 
@@ -884,18 +875,15 @@ func readNVRAMVariable(name string) (string, error) {
 	if len(files) == 0 {
 		return "", fmt.Errorf("NVRAM variable %s not found", name)
 	}
-
 	data, err := os.ReadFile(files[0])
 	if err != nil {
 		return "", fmt.Errorf("failed to read NVRAM variable: %v", err)
 	}
-
 	return hex.EncodeToString(data), nil
 }
 
 func checkSecureBootVariables(evidence *Evidence) {
 	printStatus("INFO", "\n--- Secure Boot Variables Check ---")
-
 	criticalVars := []struct {
 		Name      string
 		Desc      string
@@ -905,7 +893,6 @@ func checkSecureBootVariables(evidence *Evidence) {
 		{"KEK", "Key Exchange Key", "Set a proper Key Exchange Key (KEK) for Secure Boot"},
 		{"SetupMode", "Secure Boot Setup Mode", "Disable SetupMode to fully enable Secure Boot"},
 	}
-
 	for _, varInfo := range criticalVars {
 		value, err := readNVRAMVariable(varInfo.Name)
 		if err != nil {
@@ -921,7 +908,6 @@ func checkSecureBootVariables(evidence *Evidence) {
 			printStatus("INFO", "%s (%s) is set", varInfo.Name, varInfo.Desc)
 		}
 	}
-
 	nonCriticalVars := []struct {
 		Name string
 		Desc string
@@ -929,7 +915,6 @@ func checkSecureBootVariables(evidence *Evidence) {
 		{"db", "Allowed Signatures Database"},
 		{"dbx", "Forbidden Signatures Database"},
 	}
-
 	for _, varInfo := range nonCriticalVars {
 		value, err := readNVRAMVariable(varInfo.Name)
 		if err != nil {
@@ -946,7 +931,6 @@ func checkSecureBootVariables(evidence *Evidence) {
 
 // --- Hardware Security ---
 func checkHardwareSecurity(evidence *Evidence) {
-	// Intel TXT
 	txtEnabled, err := checkIntelTXT()
 	if err != nil {
 		printStatus("WARNING", "Intel TXT check: %v", err)
@@ -961,7 +945,6 @@ func checkHardwareSecurity(evidence *Evidence) {
 			"Enable Intel TXT in BIOS for additional protection against firmware attacks")
 	}
 
-	// TPM
 	tpmVersion, tpmEnabled, err := checkTPM()
 	if err != nil {
 		printStatus("WARNING", "TPM check: %v", err)
@@ -971,7 +954,6 @@ func checkHardwareSecurity(evidence *Evidence) {
 		evidence.Hardware.TPM = true
 		evidence.Hardware.TPMVersion = tpmVersion
 
-		// Check Measured Boot
 		measuredBoot, err := checkMeasuredBoot()
 		if err != nil {
 			printStatus("WARNING", "Measured Boot check: %v", err)
@@ -991,7 +973,6 @@ func checkHardwareSecurity(evidence *Evidence) {
 			"Enable and configure TPM 2.0 for secure boot and measured boot")
 	}
 
-	// Secure Boot
 	secureBoot, err := checkSecureBoot()
 	if err != nil {
 		printStatus("WARNING", "Secure Boot check: %v", err)
@@ -1005,36 +986,32 @@ func checkHardwareSecurity(evidence *Evidence) {
 		}
 	}
 
-	// Check for suspicious UEFI modules
 	checkSuspiciousModules(evidence)
 }
 
 // --- Vulnerability Checks ---
 func checkVulnerabilities(evidence *Evidence) {
 	printStatus("INFO", "\n--- UEFI Vulnerability Check ---")
-
 	for _, vuln := range uefiVulnerabilities {
 		detected := false
-
-		// Simple detection logic
 		switch vuln.CVE {
-		case "CVE-2023-20569": // SMM Callout
+		case "CVE-2023-20569":
 			files, _ := filepath.Glob("/sys/firmware/efi/efivars/*smm*")
 			if len(files) > 3 {
 				detected = true
 			}
-		case "CVE-2022-31705": // TianoCore Buffer Overflow
+		case "CVE-2022-31705":
 			files, _ := filepath.Glob("/sys/firmware/efi/efivars/*dxe*")
 			if len(files) > 5 {
 				detected = true
 			}
-		case "CVE-2022-34303": // Intel ME Privilege Escalation
+		case "CVE-2022-34303":
 			cmd := exec.Command("sudo", "intelmetool")
 			_, err := cmd.Output()
 			if err != nil {
 				detected = true
 			}
-		case "CVE-2021-28210": // AMI BIOS SMM Vulnerability
+		case "CVE-2021-28210":
 			cmd := exec.Command("sudo", "dmidecode", "-t", "bios")
 			output, _ := cmd.Output()
 			if strings.Contains(string(output), "American Megatrends") {
@@ -1045,7 +1022,6 @@ func checkVulnerabilities(evidence *Evidence) {
 				}
 			}
 		}
-
 		if detected {
 			printStatus("CRITICAL", "Vulnerability detected: %s (%s)", vuln.Name, vuln.CVE)
 			printStatus("CRITICAL", "    Severity: %s", vuln.Severity)
@@ -1053,7 +1029,6 @@ func checkVulnerabilities(evidence *Evidence) {
 		} else {
 			printStatus("INFO", "%s (%s): Not detected", vuln.Name, vuln.CVE)
 		}
-
 		evidence.Vulnerabilities = append(evidence.Vulnerabilities, VulnerabilityCheck{
 			Name:     vuln.Name,
 			Detected: detected,
@@ -1074,17 +1049,14 @@ func checkIntelTXT() (bool, error) {
 	if strings.Contains(string(output), "tboot") {
 		return true, nil
 	}
-
 	if _, err := os.Stat("/sys/kernel/security/tboot"); err == nil {
 		return true, nil
 	}
-
 	cmd = exec.Command("grep", "tboot", "/proc/cpuinfo")
 	output, err = cmd.CombinedOutput()
 	if err == nil && len(output) > 0 {
 		return true, nil
 	}
-
 	return false, nil
 }
 
@@ -1102,7 +1074,6 @@ func checkTPM() (string, bool, error) {
 		}
 		return "unknown", true, nil
 	}
-
 	if _, err := os.Stat("/dev/tpm0"); err == nil {
 		cmd = exec.Command("cat", "/sys/class/tpm/tpm0/tpm_version")
 		output, err := cmd.Output()
@@ -1115,7 +1086,6 @@ func checkTPM() (string, bool, error) {
 		}
 		return "unknown", true, nil
 	}
-
 	return "", false, fmt.Errorf("TPM not found or accessible")
 }
 
@@ -1128,11 +1098,9 @@ func checkSecureBoot() (string, error) {
 		}
 		return "disabled", nil
 	}
-
 	if _, err := os.Stat("/sys/firmware/efi/efivars/SecureBoot-*"); err == nil {
 		return "enabled", nil
 	}
-
 	cmd = exec.Command("test", "-d", "/sys/firmware/efi")
 	if err = cmd.Run(); err == nil {
 		cmd = exec.Command("cat", "/sys/firmware/efi/efivars/SecureBoot-*/data")
@@ -1142,7 +1110,6 @@ func checkSecureBoot() (string, error) {
 		}
 		return "disabled", nil
 	}
-
 	return "unknown", fmt.Errorf("Secure Boot check failed")
 }
 
@@ -1150,11 +1117,9 @@ func checkMeasuredBoot() (bool, error) {
 	if _, err := os.Stat("/sys/kernel/security/ima/ascii_runtime_measurements"); err == nil {
 		return true, nil
 	}
-
 	if _, err := os.Stat("/sys/kernel/security/tpm0/binary_bios_measurements"); err == nil {
 		return true, nil
 	}
-
 	cmd := exec.Command("dmesg")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -1165,13 +1130,11 @@ func checkMeasuredBoot() (bool, error) {
 	   strings.Contains(string(output), "IMA:") {
 		return true, nil
 	}
-
 	return false, nil
 }
 
 func checkSuspiciousModules(evidence *Evidence) {
 	printStatus("INFO", "\n--- Suspicious UEFI Modules Check ---")
-
 	modules := []struct {
 		Name     string
 		Pattern  string
@@ -1184,25 +1147,20 @@ func checkSuspiciousModules(evidence *Evidence) {
 		{"Runtime Modules", "*runtime*", false, "UEFI runtime services (persistent modules)"},
 		{"Unknown Modules", "*-unknown-*", true, "Unrecognized UEFI variables (potentially malicious)"},
 	}
-
 	for _, module := range modules {
 		files, err := filepath.Glob(fmt.Sprintf("/sys/firmware/efi/efivars/%s", module.Pattern))
 		if err != nil {
 			printStatus("WARNING", "Failed to check %s: %v", module.Name, err)
 			continue
 		}
-
 		if len(files) > 0 {
 			severity := "WARNING"
 			if module.Critical {
 				severity = "CRITICAL"
 			}
-
 			printStatus(severity, "%s found (%d): %s", module.Name, len(files), module.Desc)
-
 			for _, file := range files {
 				printStatus(severity, "  - %s", filepath.Base(file))
-
 				data, _ := os.ReadFile(file)
 				hexData := hex.EncodeToString(data)
 				if len(hexData) > 0 {
@@ -1211,7 +1169,6 @@ func checkSuspiciousModules(evidence *Evidence) {
 						displayHex = hexData[:32] + "..."
 					}
 					printStatus(severity, "    Content: %s", displayHex)
-
 					if strings.Contains(hexData, "48895c24f8") {
 						printStatus("WARNING", "    ⚠ Suspicious pattern found in module content!")
 					}
@@ -1226,11 +1183,7 @@ func checkSuspiciousModules(evidence *Evidence) {
 // --- Recommendations ---
 func generateRecommendations(evidence *Evidence) {
 	printStatus("INFO", "\n--- Security Recommendations ---")
-
-	// Categorize recommendations by severity
 	var critical, high, medium []string
-
-	// Firmware recommendations
 	for _, fw := range evidence.Firmware {
 		if strings.Contains(fw.Status, "CRITICAL") {
 			critical = append(critical,
@@ -1240,8 +1193,6 @@ func generateRecommendations(evidence *Evidence) {
 				fmt.Sprintf("Bind %s firmware hash to TPM for anti-tampering protection", fw.Region))
 		}
 	}
-
-	// Malware recommendations
 	for _, malware := range evidence.Malware {
 		if malware.Detected && malware.Confidence == "High" {
 			critical = append(critical,
@@ -1258,8 +1209,6 @@ func generateRecommendations(evidence *Evidence) {
 					malware.Name, malware.Category, malware.Source))
 		}
 	}
-
-	// NVRAM recommendations
 	for _, nvram := range evidence.NVRAM {
 		if !nvram.Valid {
 			for _, varDef := range getNVRAMVars() {
@@ -1276,16 +1225,12 @@ func generateRecommendations(evidence *Evidence) {
 			}
 		}
 	}
-
-	// Vulnerability recommendations
 	for _, vuln := range evidence.Vulnerabilities {
 		if vuln.Detected {
 			high = append(high,
 				fmt.Sprintf("Apply patch for %s (%s): %s", vuln.Name, vuln.CVE, vuln.Fix))
 		}
 	}
-
-	// Hardware recommendations
 	if !evidence.Hardware.IntelTXT {
 		medium = append(medium, "Enable Intel TXT in BIOS for additional protection against firmware attacks")
 	}
@@ -1301,22 +1246,16 @@ func generateRecommendations(evidence *Evidence) {
 	if !evidence.Hardware.MeasuredBoot {
 		medium = append(medium, "Enable Measured Boot for attestation and anti-rollback protection")
 	}
-
-	// Combine all recommendations
 	evidence.Recommendations = append(evidence.Recommendations, critical...)
 	evidence.Recommendations = append(evidence.Recommendations, high...)
 	evidence.Recommendations = append(evidence.Recommendations, medium...)
-
-	// Print recommendations with priority
 	for i, rec := range critical {
 		criticalColor.Printf("  [%02d] %s\n", i+1, rec)
 	}
-
 	offset := len(critical)
 	for i, rec := range high {
 		warningColor.Printf("  [%02d] %s\n", offset+i+1, rec)
 	}
-
 	offset += len(high)
 	for i, rec := range medium {
 		infoColor.Printf("  [%02d] %s\n", offset+i+1, rec)
@@ -1330,10 +1269,7 @@ func generateReport(evidence *Evidence) {
 		printStatus("CRITICAL", "Failed to create report directory: %v", err)
 		return
 	}
-
 	timestamp := time.Now().Format("20060102_150405")
-
-	// Generate JSON report
 	report, err := json.MarshalIndent(evidence, "", "  ")
 	if err != nil {
 		printStatus("CRITICAL", "Failed to generate JSON report: %v", err)
@@ -1345,15 +1281,12 @@ func generateReport(evidence *Evidence) {
 			printStatus("SUCCESS", "JSON report generated: %s", reportPath)
 		}
 	}
-
-	// Generate human-readable summary
 	summaryPath := filepath.Join(reportDir, fmt.Sprintf("summary_%s.txt", timestamp))
 	if err := generateSummaryReport(evidence, summaryPath); err != nil {
 		printStatus("CRITICAL", "Failed to write summary report: %v", err)
 	} else {
 		printStatus("SUCCESS", "Summary report generated: %s", summaryPath)
 	}
-
 	printStatus("INFO", "To analyze later:")
 	infoColor.Println("    jq . " + filepath.Join(reportDir, fmt.Sprintf("report_%s.json", timestamp)))
 	infoColor.Println("    cat " + summaryPath)
@@ -1362,18 +1295,16 @@ func generateReport(evidence *Evidence) {
 func generateSummaryReport(evidence *Evidence, path string) error {
 	content := fmt.Sprintf(
 		"==================================================\n"+
-		"=            sl0ppy UEFI Scan Summary v%s           =\n"+
-		"=          [ FULL COVERAGE UEFI ANALYSIS ]        =\n"+
-		"==================================================\n\n"+
-		"Hostname: %s\n"+
-		"Timestamp: %s\n"+
-		"Rules Updated From: %s\n"+
-		"Virtualization: %s\n\n"+
-		"=== [ Firmware Integrity ] =======================\n",
+			"=            sl0ppy UEFI Scan Summary v%s           =\n"+
+			"=          [ FULL COVERAGE UEFI ANALYSIS ]        =\n"+
+			"==================================================\n\n"+
+			"Hostname: %s\n"+
+			"Timestamp: %s\n"+
+			"Rules Updated From: %s\n"+
+			"Virtualization: %s\n\n"+
+			"=== [ Firmware Integrity ] =======================\n",
 		evidence.Version, evidence.Hostname, evidence.Timestamp,
 		strings.Join(evidence.RulesUpdated, ", "), evidence.Hardware.Virtualization)
-
-	// Firmware status
 	criticalFirmware := 0
 	for _, fw := range evidence.Firmware {
 		status := "OK"
@@ -1385,7 +1316,6 @@ func generateSummaryReport(evidence *Evidence, path string) error {
 		}
 		content += fmt.Sprintf("  %-12s: %s\n", fw.Region, status)
 	}
-
 	content += "\n=== [ UEFI Threats ] ============================\n"
 	criticalThreats := 0
 	for _, malware := range evidence.Malware {
@@ -1407,7 +1337,6 @@ func generateSummaryReport(evidence *Evidence, path string) error {
 	if criticalThreats == 0 {
 		content += "  " + successColor.Sprintf("No threats detected") + "\n"
 	}
-
 	content += "\n=== [ NVRAM Status ] ============================\n"
 	criticalNVRAM := 0
 	for _, nvram := range evidence.NVRAM {
@@ -1420,14 +1349,12 @@ func generateSummaryReport(evidence *Evidence, path string) error {
 		}
 		content += fmt.Sprintf("  %-15s: %s\n", nvram.Name, status)
 	}
-
 	content += "\n=== [ Hardware Security ] =======================\n"
 	content += fmt.Sprintf("  %-18s: %t\n", "Intel TXT", evidence.Hardware.IntelTXT)
 	content += fmt.Sprintf("  %-18s: %t (v%s)\n", "TPM", evidence.Hardware.TPM, evidence.Hardware.TPMVersion)
 	content += fmt.Sprintf("  %-18s: %s\n", "Secure Boot", evidence.Hardware.SecureBoot)
 	content += fmt.Sprintf("  %-18s: %t\n", "SPI Lock", evidence.Hardware.SPILock)
 	content += fmt.Sprintf("  %-18s: %t\n", "Measured Boot", evidence.Hardware.MeasuredBoot)
-
 	content += "\n=== [ Vulnerabilities ] =========================\n"
 	vulnCount := 0
 	for _, vuln := range evidence.Vulnerabilities {
@@ -1447,23 +1374,19 @@ func generateSummaryReport(evidence *Evidence, path string) error {
 	if vulnCount == 0 {
 		content += "  " + successColor.Sprintf("No vulnerabilities detected") + "\n"
 	}
-
 	content += "\n=== [ Security Recommendations ] ===============\n"
 	for i, rec := range evidence.Recommendations {
 		content += fmt.Sprintf("  [%02d] %s\n", i+1, rec)
 	}
-
 	content += "\n=== [ Scan Statistics ] =========================\n"
 	content += fmt.Sprintf("  %-30s: %d\n", "Critical firmware issues", criticalFirmware)
 	content += fmt.Sprintf("  %-30s: %d\n", "Critical threats detected", criticalThreats)
 	content += fmt.Sprintf("  %-30s: %d\n", "NVRAM issues found", criticalNVRAM)
 	content += fmt.Sprintf("  %-30s: %d\n", "Vulnerabilities found", vulnCount)
-
 	if criticalFirmware > 0 || criticalThreats > 0 || criticalNVRAM > 0 || vulnCount > 0 {
 		content += "\n" + criticalColor.Sprintf("⚠ SYSTEM MAY BE COMPROMISED! Immediate action recommended.") + "\n"
 	} else {
 		content += "\n" + successColor.Sprintf("✓ No critical issues found.") + "\n"
 	}
-
 	return ioutil.WriteFile(path, []byte(content), 0644)
 }
