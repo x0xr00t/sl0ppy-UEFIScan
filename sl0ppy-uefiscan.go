@@ -37,7 +37,7 @@ var (
 
 // --- Config ---
 const (
-	Version            = "2.1"
+	Version            = "1.0"
 	YaraRulesDir       = "/tmp/sl0ppy_yara_rules"
 	GitHubRulesRepo    = "https://raw.githubusercontent.com/Yara-Rules/rules/master"
 	MISPFeedURL        = "https://www.misp-project.org/feeds/yara"
