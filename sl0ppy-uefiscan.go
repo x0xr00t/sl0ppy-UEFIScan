@@ -1005,59 +1005,59 @@ func hashFirmwareRegion(start, end uint64) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// --- Threat Scanning ---
 func scanForThreats(evidence *Evidence, rules []MalwareSignature) {
-	printSubSection("UEFI Threat Scan")
+    printSubSection("UEFI Threat Scan")
+    targets := []string{
+        "/sys/firmware/efi/efivars/",
+        "/boot/efi/",
+    }
+    totalFilesScanned := 0
+    totalRulesApplied := 0
 
-	targets := []string{
-		"/sys/firmware/efi/efivars/",
-		"/boot/efi/",
-	}
-
-	for _, target := range targets {
-		files, err := filepath.Glob(filepath.Join(target, "*"))
-		if err != nil {
-			printStatus("WARNING", "Failed to scan %s: %v", target, err)
-			continue
-		}
-
-		for _, file := range files {
-			fileInfo, err := os.Stat(file)
-			if err != nil {
-				printStatus("WARNING", "Failed to stat %s: %v", file, err)
-				continue
-			}
-
-			if fileInfo.IsDir() {
-				continue
-			}
-
-			for _, rule := range rules {
-				matches, err := scanFileWithYARA(file, rule.Pattern)
-				if err != nil {
-					printStatus("WARNING", "Failed to scan %s with rule %s: %v", file, rule.Name, err)
-					continue
-				}
-
-				if len(matches) > 0 {
-					printStatus("DETECTION", "Detection: %s in %s (Severity: %s)", rule.Name, file, rule.Severity)
-					evidence.Malware = append(evidence.Malware, MalwareCheck{
-						Name:       rule.Name,
-						Detected:   true,
-						Severity:   rule.Severity,
-						Source:     rule.Source,
-						Category:   rule.Category,
-						Confidence: "High",
-						Indicators: len(matches),
-						CVE:        rule.CVE,
-						RuleFile:   rule.RuleFile,
-						Version:    rule.Version,
-						Matches:    matches,
-					})
-				}
-			}
-		}
-	}
+    for _, target := range targets {
+        files, err := filepath.Glob(filepath.Join(target, "*"))
+        if err != nil {
+            printStatus("WARNING", "Failed to scan %s: %v", target, err)
+            continue
+        }
+        for _, file := range files {
+            fileInfo, err := os.Stat(file)
+            if err != nil {
+                printStatus("WARNING", "Failed to stat %s: %v", file, err)
+                continue
+            }
+            if fileInfo.IsDir() {
+                continue
+            }
+            totalFilesScanned++
+            printStatus("INFO", "Scanning file: %s", file)
+            for _, rule := range rules {
+                totalRulesApplied++
+                matches, err := scanFileWithYARA(file, rule.Pattern)
+                if err != nil {
+                    printStatus("WARNING", "Failed to scan %s with rule %s: %v", file, rule.Name, err)
+                    continue
+                }
+                if len(matches) > 0 {
+                    printStatus("DETECTION", "Detection: %s in %s (Severity: %s)", rule.Name, file, rule.Severity)
+                    evidence.Malware = append(evidence.Malware, MalwareCheck{
+                        Name:       rule.Name,
+                        Detected:   true,
+                        Severity:   rule.Severity,
+                        Source:     rule.Source,
+                        Category:   rule.Category,
+                        Confidence: "High",
+                        Indicators: len(matches),
+                        CVE:        rule.CVE,
+                        RuleFile:   rule.RuleFile,
+                        Version:    rule.Version,
+                        Matches:    matches,
+                    })
+                }
+            }
+        }
+    }
+    printStatus("INFO", "Threat scan completed. Files scanned: %d, Rules applied: %d", totalFilesScanned, totalRulesApplied)
 }
 
 func scanFileWithYARA(filePath, rule string) ([]YARAMatch, error) {
