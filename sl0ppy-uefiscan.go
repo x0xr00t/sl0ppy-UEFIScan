@@ -241,6 +241,22 @@ rule UEFI_Persistence_Generic {
     condition:
         any of them
 }`,
+	"Any UEFI Malicious Intend"; `
+rule UEFI_Malware_Generic_2025 {
+    meta:
+        description = "Detects generic UEFI malware patterns (2018-2025)"
+        author = "Advanced Threat Research"
+        severity = "CRITICAL"
+        category = "Rootkit/Bootkit"
+    strings:
+        $smm_hook = {48 89 5C 24 10 48 89 74 24 18 57 48 83 EC 30}
+        $spi_flash = {55 48 89 E5 48 83 EC 40 48 89 7D D8}
+        $secure_boot_bypass = {48 8D 15 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 1E}
+        $anti_debug = "Intel PT" nocase
+        $backdoor = "Backdoor" nocase
+    condition:
+        any of them
+}`,	
 	"UEFI_Suspicious_Patterns": `
 rule UEFI_Suspicious_Patterns {
     meta:
