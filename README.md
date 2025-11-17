@@ -15,11 +15,7 @@
 # v1.2 is done
 - the binary needs to be remade 
 - `go build sl0ppy-uefiscan`
-
-# upgrade comming soon 
-- Due to sum other projects, there was little time to dev this out the past weeks. 
-- There will be a upgrade scheduled soon to work out more bits and stuff on this.
-- Hang on tight till then, and wait for the new released verion  
+- will remake it soon and add it here, if any compile issues (open a issue ticket)
 
 ## 🔍 Features
 
