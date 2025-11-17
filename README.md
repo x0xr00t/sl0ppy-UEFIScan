@@ -11,6 +11,11 @@
 * sl0ppy UEFI Scanner is a comprehensive tool for detecting UEFI firmware vulnerabilities, malware, and security misconfigurations. It performs deep analysis of UEFI components including firmware integrity checks, NVRAM validation, threat detection, and hardware security assessments.
 
 ```
+
+# v1.2 is done
+- the binary needs to be remade 
+- `go build sl0ppy-uefiscan`
+
 # upgrade comming soon 
 - Due to sum other projects, there was little time to dev this out the past weeks. 
 - There will be a upgrade scheduled soon to work out more bits and stuff on this.
