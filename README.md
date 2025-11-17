@@ -79,7 +79,7 @@ sudo ./sl0ppy-uefiscan
 ```
 Example Output
 ==================================================
-=            sl0ppy UEFI Scanner v3.3           =
+=            sl0ppy UEFI Scanner v1.1           =
 =          [ FULL COVERAGE UEFI ANALYSIS ]        =
 ==================================================
 
