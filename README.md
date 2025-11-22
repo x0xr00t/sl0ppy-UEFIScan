@@ -12,10 +12,7 @@
 
 ```
 
-# v1.2 is done
-- the binary needs to be remade 
-- `go build sl0ppy-uefiscan`
-- will remake it soon and add it here, if any compile issues (open a issue ticket)
+# v1.3 is done
 
 ## 🔍 Features
 
