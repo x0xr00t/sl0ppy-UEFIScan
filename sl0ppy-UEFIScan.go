@@ -85,12 +85,39 @@ type NVRAMVariable struct {
 }
 
 type FirmwareCheck struct {
-	Region   string `json:"region"`
-	Hash     string `json:"hash"`
-	Expected string `json:"expected"`
-	Status   string `json:"status"`
-	TPMBound bool   `json:"tpm_bound"`
+	// Identity
+	Region        string `json:"region"`
+	Version       string `json:"version"`
+	Vendor        string `json:"vendor"`
+	Model         string `json:"model"`
+
+	// Integrity
+	Hash          string `json:"hash"`            // Measured hash
+	ExpectedHash  string `json:"expected_hash"`   // Known-good hash
+	Algorithm     string `json:"algorithm"`       // sha256 / sha384 / sha512
+	Status        string `json:"status"`          
+
+	// Trust Binding
+	TPMBound      bool   `json:"tpm_bound"`
+	PCRIndex      int    `json:"pcr_index"`
+	Attested      bool   `json:"attested"`
+
+	// Rollback / Update Control
+	SecureBoot    bool   `json:"secure_boot"`
+	AntiRollback  bool   `json:"anti_rollback"`
+	MinVersion    string `json:"min_version"`
+
+	// Provenance
+	Signed        bool   `json:"signed"`
+	Signer        string `json:"signer"`
+	SignatureHash string `json:"signature_hash"`
+
+	// Runtime State
+	LastChecked   int64  `json:"last_checked"`   // unix timestamp
+	Source        string `json:"source"`         // spi, flash, capsule, rom
+	Notes         string `json:"notes,omitempty"`
 }
+
 
 type YARAMatch struct {
 	FilePath string `json:"file"`
