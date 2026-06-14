@@ -1,4 +1,5 @@
-🔹 What’s New in v2.0?
+## 🔹 What’s New in v2.0?
+```
 ✅ Expanded YARA Rules – Added signatures for MosaicRegressor, FinFisher, TrickBoot, and more.
 ✅ Firmware Capsule Validation – Detects malicious UEFI capsules (e.g., BlackLotus).
 ✅ SPI Flash Protection Bypass Detection – Checks if BIOS write protection is disabled.
@@ -15,3 +16,4 @@
 ✅ Virtualization Escape Detection – Detects VM escape attempts (e.g., QEMU, VMware, KVM).
 ✅ Side-Channel Attack Mitigations – Checks for Spectre, Meltdown, and TPM side-channel protections.
 ✅ Detailed Reporting – Generates JSON and summary reports with actionable recommendations.
+```
