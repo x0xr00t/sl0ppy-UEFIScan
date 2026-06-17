@@ -1,11 +1,11 @@
 // ---------------------------------
-// --     Sl0ppy-UEFIScan v1.1       --
+// --     Sl0ppy-UEFIScan v1.4       --
 // -- Author  : Patrick Hoogeveen --
 // -- AKA     : x0xr00t           --
 // -- build   : 20260617          --
 // -- revised : 20260617          --
-// -- version : v1.1              --
-// -- Fixed   : Full corrections  --
+// -- version : v1.4             --
+//   --
 //----------------------------------
 package main
 
