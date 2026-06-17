@@ -1,4 +1,4 @@
-## 🔹 What’s New in v2.0?
+## 🔹 What’s New in v1.4?
 ```
 ✅ Expanded YARA Rules – Added signatures for MosaicRegressor, FinFisher, TrickBoot, and more.
 ✅ Firmware Capsule Validation – Detects malicious UEFI capsules (e.g., BlackLotus).
