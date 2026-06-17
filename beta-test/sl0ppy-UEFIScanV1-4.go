@@ -4,8 +4,7 @@
 // -- AKA     : x0xr00t           --
 // -- build   : 20260617          --
 // -- revised : 20260617          --
-// -- version : v1.4             --
-//   --
+// -- version : v1.4              --
 //----------------------------------
 package main
 
@@ -16,10 +15,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -30,15 +29,15 @@ import (
 
 // --- Color Scheme ---
 var (
-	headerColor     = color.New(color.FgHiCyan, color.Bold)
-	sectionColor    = color.New(color.FgHiMagenta, color.Bold)
+	headerColor    = color.New(color.FgHiCyan, color.Bold)
+	sectionColor   = color.New(color.FgHiMagenta, color.Bold)
 	subSectionColor = color.New(color.FgCyan)
-	successColor    = color.New(color.FgGreen, color.Bold)
-	warningColor    = color.New(color.FgYellow, color.Bold)
-	criticalColor   = color.New(color.FgRed, color.Bold)
-	infoColor       = color.New(color.FgBlue)
-	debugColor      = color.New(color.FgHiBlack)
-	highlightColor  = color.New(color.FgHiWhite, color.Bold)
+	successColor   = color.New(color.FgGreen, color.Bold)
+	warningColor   = color.New(color.FgYellow, color.Bold)
+	criticalColor  = color.New(color.FgRed, color.Bold)
+	infoColor      = color.New(color.FgBlue)
+	debugColor     = color.New(color.FgHiBlack)
+	highlightColor = color.New(color.FgHiWhite, color.Bold)
 
 	okStatus        = successColor.Sprintf("✓")
 	warnStatus      = warningColor.Sprintf("⚠")
@@ -88,26 +87,26 @@ type NVRAMVariable struct {
 }
 
 type FirmwareCheck struct {
-	Region        string `json:"region"`
-	Version       string `json:"version"`
-	Vendor        string `json:"vendor"`
-	Model         string `json:"model"`
-	Hash          string `json:"hash"`
-	ExpectedHash  string `json:"expected_hash"`
-	Algorithm     string `json:"algorithm"`
-	Status        string `json:"status"`
-	TPMBound      bool   `json:"tpm_bound"`
-	PCRIndex      int    `json:"pcr_index"`
-	Attested      bool   `json:"attested"`
-	SecureBoot    bool   `json:"secure_boot"`
-	AntiRollback  bool   `json:"anti_rollback"`
-	MinVersion    string `json:"min_version"`
-	Signed        bool   `json:"signed"`
-	Signer        string `json:"signer"`
+	Region       string `json:"region"`
+	Version      string `json:"version"`
+	Vendor       string `json:"vendor"`
+	Model        string `json:"model"`
+	Hash         string `json:"hash"`
+	ExpectedHash string `json:"expected_hash"`
+	Algorithm    string `json:"algorithm"`
+	Status       string `json:"status"`
+	TPMBound     bool   `json:"tpm_bound"`
+	PCRIndex     int    `json:"pcr_index"`
+	Attested     bool   `json:"attested"`
+	SecureBoot   bool   `json:"secure_boot"`
+	AntiRollback bool   `json:"anti_rollback"`
+	MinVersion   string `json:"min_version"`
+	Signed       bool   `json:"signed"`
+	Signer       string `json:"signer"`
 	SignatureHash string `json:"signature_hash"`
-	LastChecked   int64  `json:"last_checked"`
-	Source        string `json:"source"`
-	Notes         string `json:"notes,omitempty"`
+	LastChecked  int64  `json:"last_checked"`
+	Source       string `json:"source"`
+	Notes        string `json:"notes,omitempty"`
 }
 
 type YARAMatch struct {
@@ -246,98 +245,6 @@ rule UEFI_SPI_Flash_Manipulation {
         any of them
 }
 `,
-	"UEFI_Suspicious_Calls": `
-rule UEFI_Suspicious_Calls {
-    meta:
-        description = "Detects suspicious UEFI runtime service calls"
-        severity = "HIGH"
-    strings:
-        $get_bs = {48 8B 05 ?? ?? ?? ?? 48 85 C0 74 ?? 48 8B 40 18 48 85 C0 74 ??}
-        $fv_access = {48 8B 05 ?? ?? ?? ?? 48 85 C0 74 ?? 48 8B 40 20}
-        $alloc_pool = {48 8B 05 ?? ?? ?? ?? 48 85 C0 74 ?? 48 8B 40 30}
-    condition:
-        any of them
-}
-`,
-	"UEFI_AntiDebug_AntiVM": `
-rule UEFI_AntiDebug_AntiVM {
-    meta:
-        description = "Detects anti-debug and anti-VM techniques in UEFI"
-        severity = "HIGH"
-        category = "Evasion"
-    strings:
-        $debug_port_check = {48 C7 C0 00 00 00 00 0F 22 C0}
-        $anti_vm_1 = "VMware" nocase
-        $anti_vm_2 = "VBox" nocase
-        $anti_pt = {0F 01 D9}
-    condition:
-        any of them
-}
-`,
-	"UEFI_Backdoor_Keylogger": `
-rule UEFI_Backdoor_Keylogger {
-    meta:
-        description = "Detects UEFI backdoors and keyloggers"
-        severity = "CRITICAL"
-    strings:
-        $keylog_buffer = {48 8D 15 ?? ?? ?? ?? 48 8B 00 48 89 45 E0 48 8B 45 E0 48 85 C0 74 ?? 8A 00}
-        $net_comms = "EFI_SIMPLE_NETWORK_PROTOCOL" wide ascii
-        $hidden_cmd = "Backdoor" nocase
-    condition:
-        any of them
-}
-`,
-	"LoJax_2025": `
-rule UEFI_LoJax_2025 {
-    meta:
-        description = "Detects LoJax UEFI rootkit (2025 SMM variants)"
-        reference = "https://securelist.com/lojax-first-uefi-rootkit/87906/"
-        author = "Kaspersky Lab"
-        date = "2025-01-15"
-        severity = "CRITICAL"
-        category = "Rootkit"
-        version = "3.0"
-    strings:
-        $lojax_smm_hook = {48 89 5C 24 10 48 89 74 24 18 57 48 83 EC 30 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 44 24 20}
-        $lojax_persistence = {48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 1E 48 8B 05 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ??}
-    condition:
-        any of them
-}
-`,
-	"MoonBounce_2025": `
-rule UEFI_MoonBounce_2025 {
-    meta:
-        description = "Detects MoonBounce UEFI implant (SPI flash)"
-        reference = "https://securelist.com/moonbounce-the-dark-side-of-uefi-firmware/105468/"
-        author = "Kaspersky Lab"
-        date = "2025-03-22"
-        severity = "CRITICAL"
-        category = "Bootkit"
-        version = "4.1"
-    strings:
-        $mb_spi_flash = {55 48 89 E5 48 83 EC 40 48 89 7D D8 48 89 75 D0 48 8B 05 ?? ?? ?? ?? 48 85 C0 74 2A}
-        $mb_pe_loader = {48 8B 45 D8 48 8D 15 ?? ?? ?? ?? 48 8B 00 48 89 45 E0 48 8B 45 E0 48 85 C0 74 1E}
-    condition:
-        any of them
-}
-`,
-	"BlackLotus_UEFI_Bootkit": `
-rule UEFI_BlackLotus {
-    meta:
-        description = "Detects BlackLotus UEFI bootkit (Secure Boot bypass)"
-        reference = "https://www.welivesecurity.com/2023/05/18/blacklotus-uefi-bootkit-myth-confirmed/"
-        author = "ESET Research"
-        date = "2025-02-01"
-        severity = "CRITICAL"
-        category = "Bootkit"
-        version = "2.0"
-    strings:
-        $bl_secure_boot_bypass = {48 8D 15 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 1E 48 8B 05 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ??}
-        $bl_persistence = {48 8B 45 E0 48 85 C0 74 1A 48 8B 40 18 48 85 C0 74 16}
-    condition:
-        any of them
-}
-`,
 }
 
 // --- YARA Rule Sources ---
@@ -362,20 +269,6 @@ var githubYaraRules2025 = []struct {
 		Maintainer:  "Yara-Rules Community",
 		LastUpdated: "2023-11-22",
 	},
-	{
-		URL:         "https://raw.githubusercontent.com/Neo23x0/signature-base/master/yara/apt_lojax.yar",
-		Filename:    "apt_lojax.yar",
-		Description: "Alternative LoJax detection rules",
-		Maintainer:  "Neo23x0",
-		LastUpdated: "2024-05-01",
-	},
-	{
-		URL:         "https://raw.githubusercontent.com/InQuest/awesome-yara/master/rules/UEFI_BlackLotus.yar",
-		Filename:    "UEFI_BlackLotus.yar",
-		Description: "Detects BlackLotus UEFI bootkit",
-		Maintainer:  "InQuest",
-		LastUpdated: "2023-06-01",
-	},
 }
 
 // --- UEFI Vulnerabilities ---
@@ -392,17 +285,6 @@ var uefiVulnerabilities2025 = []VulnerabilityCheck{
 		Exploitability: "Public PoC available",
 	},
 	{
-		Name:           "TianoCore Buffer Overflow",
-		CVE:            "CVE-2023-31705",
-		Severity:       "CRITICAL",
-		Affected:       []string{"TianoCore EDK II", "UEFI Boot Manager"},
-		Description:    "Buffer overflow in TianoCore's EDK II allows arbitrary code execution during early boot.",
-		Fix:            "Apply the latest vendor patch for TianoCore EDK II and audit boot manager configurations.",
-		DisclosureDate: "2023-03-22",
-		Reference:      "https://nvd.nist.gov/vuln/detail/CVE-2023-31705",
-		Exploitability: "Public PoC available",
-	},
-	{
 		Name:           "UEFI Secure Boot Bypass",
 		CVE:            "CVE-2023-33742",
 		Severity:       "CRITICAL",
@@ -413,29 +295,18 @@ var uefiVulnerabilities2025 = []VulnerabilityCheck{
 		Reference:      "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-33742",
 		Exploitability: "Public PoC available",
 	},
-	{
-		Name:           "InsydeH2O SMI Handler Vulnerability",
-		CVE:            "CVE-2023-42756",
-		Severity:       "HIGH",
-		Affected:       []string{"InsydeH2O UEFI", "SMI Handlers"},
-		Description:    "Improper input validation in SMI handlers allows local privilege escalation to SMM mode.",
-		Fix:            "Update InsydeH2O firmware to version 5.5 or later and review SMI handler configurations.",
-		DisclosureDate: "2023-07-18",
-		Reference:      "https://www.insyde.com/security-advisories/",
-		Exploitability: "Theoretical (no public PoC)",
-	},
 }
 
 // --- Helper Functions ---
 func printHeader() {
 	headerColor.Println(`
- SSS  l  000                     U   U EEEE FFFF III  SSS                
-S     l 0  00                    U   U E    F     I  S                   
+ SSS  l  000                     U   U EEEE FFFF III  SSS 
+S     l 0  00                    U   U E    F     I  S  
  SSS  l 0 0 0 ppp  ppp  y  y --- U   U EEE  FFF   I   SSS   ccc  aa nnn  
     S l 00  0 p  p p  p y  y     U   U E    F     I      S c    a a n  n 
 SSSS  l  000  ppp  ppp   yyy      UUU  EEEE F    III SSSS   ccc aaa n  n 
-              p    p       y                                             
-              p    p    yyy                                              
+              p    p       y 
+              p    p    yyy 
 `)
 	infoColor.Printf("sl0ppy UEFI Scan v1.1 v%s - Comprehensive UEFI Forensic Tool\n", Version)
 	infoColor.Println("==================================================")
@@ -494,9 +365,6 @@ func printFooter() {
 	infoColor.Println("Check detailed reports in:")
 	highlightColor.Println("  • JSON Report: /var/log/sl0ppy_uefi_scan/report_*.json")
 	highlightColor.Println("  • Summary Report: /var/log/sl0ppy_uefi_scan/summary_*.txt")
-	infoColor.Println("\nFor further analysis:")
-	highlightColor.Println("  jq . /var/log/sl0ppy_uefi_scan/report_*.json | less")
-	highlightColor.Println("  cat /var/log/sl0ppy_uefi_scan/summary_*.txt")
 }
 
 // --- Dependency Check ---
@@ -555,7 +423,6 @@ func updateYARARules() ([]string, error) {
 	var updatedSources []string
 	var atLeastOneSuccess bool
 
-	// Clean and create rules directory
 	if err := os.RemoveAll(YaraRulesDir); err != nil {
 		printStatus("WARNING", "Failed to clean old rules directory: %v", err)
 	}
@@ -565,7 +432,6 @@ func updateYARARules() ([]string, error) {
 
 	client := &http.Client{Timeout: RuleUpdateTimeout}
 
-	// Download from GitHub sources
 	for _, rule := range githubYaraRules2025 {
 		dest := filepath.Join(YaraRulesDir, rule.Filename)
 		printStatus("UPDATE", "Attempting to download: %s", rule.Filename)
@@ -603,7 +469,6 @@ func updateYARARules() ([]string, error) {
 		printStatus("SUCCESS", "Successfully updated: %s", rule.Filename)
 	}
 
-	// Always use built-in rules as fallback
 	builtInRules := filepath.Join(YaraRulesDir, "built_in_rules.yar")
 	var builtInContent strings.Builder
 	for _, rule := range enhancedYaraRules {
@@ -630,13 +495,10 @@ func updateYARARules() ([]string, error) {
 func loadYARARules() ([]MalwareSignature, error) {
 	var rules []MalwareSignature
 
-	// Load built-in rules first
 	for name, rule := range enhancedYaraRules {
 		version := "1.0"
 		if strings.Contains(name, "_2025") {
 			version = "2.0"
-		} else if strings.Contains(name, "_2023") {
-			version = "1.5"
 		}
 
 		category := "Malware"
@@ -644,8 +506,6 @@ func loadYARARules() ([]MalwareSignature, error) {
 			category = "Rootkit"
 		} else if strings.Contains(rule, `category = "Bootkit"`) {
 			category = "Bootkit"
-		} else if strings.Contains(rule, `category = "Spyware"`) {
-			category = "Spyware"
 		} else if strings.Contains(rule, `category = "Evasion"`) {
 			category = "Evasion"
 		} else if strings.Contains(rule, `category = "Persistence"`) {
@@ -670,7 +530,6 @@ func loadYARARules() ([]MalwareSignature, error) {
 		})
 	}
 
-	// Load downloaded rules
 	entries, err := os.ReadDir(YaraRulesDir)
 	if err != nil {
 		return rules, fmt.Errorf("failed to read rules directory: %v", err)
@@ -761,10 +620,6 @@ func parseYARAFile(filePath, content string) ([]MalwareSignature, error) {
 			confirmationReq = 3
 		} else if strings.Contains(lowerName, "rootkit") || strings.Contains(strings.ToLower(category), "rootkit") {
 			confirmationReq = 3
-		} else if strings.Contains(lowerName, "spy") || strings.Contains(strings.ToLower(category), "spyware") {
-			confirmationReq = 2
-		} else if strings.Contains(lowerName, "rat") {
-			confirmationReq = 2
 		}
 
 		fileInfo, _ := os.Stat(filePath)
@@ -861,7 +716,6 @@ func getNVRAMFix(name, value string) string {
 }
 
 func readNVRAMVariable(name string) (string, error) {
-	// Try efivar first
 	cmd := exec.Command("efivar", "-n", name, "-p")
 	output, err := cmd.CombinedOutput()
 	if err == nil {
@@ -877,20 +731,17 @@ func readNVRAMVariable(name string) (string, error) {
 		return hex.EncodeToString(output), nil
 	}
 
-	// Fallback: Try reading from /sys/firmware/efi/efivars/
 	efivarPath := filepath.Join("/sys/firmware/efi/efivars/", name+"-*")
 	matches, err := filepath.Glob(efivarPath)
 	if err != nil || len(matches) == 0 {
 		return "", fmt.Errorf("%s not found", name)
 	}
 
-	// Read the first match
 	data, err := os.ReadFile(matches[0])
 	if err != nil {
 		return "", fmt.Errorf("failed to read %s: %v", name, err)
 	}
 
-	// Skip the first 4 bytes (attributes)
 	if len(data) > 4 {
 		data = data[4:]
 	}
@@ -1019,7 +870,6 @@ func checkSecureBoot() (string, error) {
 }
 
 func checkSPILock() (bool, error) {
-	// Method 1: Check /sys/class/mtd/
 	if _, err := os.Stat("/sys/class/mtd/mtd0/flags"); err == nil {
 		content, err := os.ReadFile("/sys/class/mtd/mtd0/flags")
 		if err != nil {
@@ -1028,14 +878,12 @@ func checkSPILock() (bool, error) {
 		return strings.Contains(string(content), "WP"), nil
 	}
 
-	// Method 2: Use flashrom
 	cmd := exec.Command("flashrom", "--wp-status")
 	output, err := cmd.CombinedOutput()
 	if err == nil && strings.Contains(string(output), "WP: enabled") {
 		return true, nil
 	}
 
-	// Method 3: Check dmidecode
 	cmd = exec.Command("dmidecode", "-t", "bios")
 	output, err = cmd.Output()
 	if err == nil {
@@ -1050,22 +898,17 @@ func checkSPILock() (bool, error) {
 }
 
 func checkMeasuredBoot() (bool, error) {
-	// Method 1: Check IMA
 	if _, err := os.Stat("/sys/kernel/security/ima/ascii_runtime_measurements"); err == nil {
 		return true, nil
 	}
 
-	// Method 2: Check TPM PCRs
-	if tpmPresent, _ := checkTPM(); tpmPresent {
-		cmd := exec.Command("tpm2_pcrread", "sha256:0,1,2,3,4,5,6,7")
-		err := cmd.Run()
-		if err == nil {
-			return true, nil
-		}
+	cmd := exec.Command("tpm2_pcrread", "sha256:0,1,2,3,4,5,6,7")
+	err := cmd.Run()
+	if err == nil {
+		return true, nil
 	}
 
-	// Method 3: Check dmesg
-	cmd := exec.Command("dmesg")
+	cmd = exec.Command("dmesg")
 	output, err := cmd.Output()
 	if err != nil {
 		return false, err
@@ -1113,28 +956,11 @@ func checkVulnerabilities(evidence *Evidence) {
 				detected = true
 				details = fmt.Sprintf("Found %d suspicious SMM-related variables", len(files))
 			}
-		case "CVE-2023-31705":
-			files, _ := filepath.Glob("/sys/firmware/efi/efivars/*Dxe*")
-			if len(files) > 5 {
-				detected = true
-				details = fmt.Sprintf("Found %d suspicious DXE-related variables", len(files))
-			}
 		case "CVE-2023-33742":
 			secureBoot, _ := checkSecureBoot()
 			if secureBoot != "enabled" {
 				detected = true
 				details = "Secure Boot is not properly enabled"
-			}
-		case "CVE-2023-42756":
-			cmd := exec.Command("dmidecode", "-t", "bios")
-			output, _ := cmd.Output()
-			if strings.Contains(string(output), "Insyde Corp.") {
-				versionRegex := regexp.MustCompile(`Version:\s*(.+)`)
-				matches := versionRegex.FindStringSubmatch(string(output))
-				if len(matches) > 1 && strings.HasPrefix(matches[1], "5.0") {
-					detected = true
-					details = fmt.Sprintf("InsydeH2O BIOS version %s may be vulnerable", matches[1])
-				}
 			}
 		}
 
@@ -1195,7 +1021,6 @@ func checkFirmwareIntegrity(evidence *Evidence) {
 }
 
 func hashFirmwareRegion(start, end uint64) (string, error) {
-	// Method 1: Try flashrom
 	cmd := exec.Command("flashrom", "-r", "/tmp/firmware_dump.bin", "--layout", fmt.Sprintf("%x:%x", start, end))
 	err := cmd.Run()
 	if err == nil {
@@ -1207,7 +1032,6 @@ func hashFirmwareRegion(start, end uint64) (string, error) {
 		}
 	}
 
-	// Method 2: Fallback to /dev/mem (requires root)
 	file, err := os.Open("/dev/mem")
 	if err != nil {
 		return "", fmt.Errorf("failed to open /dev/mem: %v", err)
@@ -1288,7 +1112,6 @@ func scanForThreats(evidence *Evidence, rules []MalwareSignature) {
 }
 
 func scanFileWithYARA(filePath, rule string) ([]YARAMatch, error) {
-	// Try using go-yara
 	compiler, err := yara.NewCompiler()
 	if err != nil {
 		return fallbackYARAScan(filePath, rule)
@@ -1405,7 +1228,6 @@ func generateReport(evidence *Evidence) {
 	reportPath := filepath.Join(reportDir, fmt.Sprintf("report_%s.json", timestamp))
 	summaryPath := filepath.Join(reportDir, fmt.Sprintf("summary_%s.txt", timestamp))
 
-	// Generate JSON report
 	report, err := json.MarshalIndent(evidence, "", "  ")
 	if err != nil {
 		printStatus("CRITICAL", "Failed to generate JSON report: %v", err)
@@ -1417,7 +1239,6 @@ func generateReport(evidence *Evidence) {
 		}
 	}
 
-	// Generate summary report
 	if err := generateSummaryReport(evidence, summaryPath); err != nil {
 		printStatus("CRITICAL", "Failed to write summary report: %v", err)
 	} else {
@@ -1605,19 +1426,16 @@ func generateSummaryReport(evidence *Evidence, path string) error {
 func main() {
 	printHeader()
 
-	// Check for root
 	if !checkRoot() {
 		printStatus("CRITICAL", "This tool requires root privileges. Run with sudo.")
 		os.Exit(1)
 	}
 
-	// Check dependencies
 	if err := checkDependencies(); err != nil {
 		printStatus("CRITICAL", "%v", err)
 		os.Exit(1)
 	}
 
-	// Initialize logging
 	logFile, err := initLogging()
 	if err != nil {
 		printStatus("WARNING", "Failed to initialize logging: %v", err)
@@ -1632,7 +1450,6 @@ func main() {
 		Version:   Version,
 	}
 
-	// 1. Update YARA Rules
 	printSection("YARA RULES UPDATE")
 	updatedRules, err := updateYARARules()
 	if err != nil {
@@ -1642,11 +1459,9 @@ func main() {
 		printStatus("SUCCESS", "YARA rules updated from: %s", strings.Join(updatedRules, ", "))
 	}
 
-	// 2. Load YARA Rules
 	yaraRules, err := loadYARARules()
 	if err != nil {
 		printStatus("CRITICAL", "Failed to load YARA rules: %v", err)
-		// Fallback: Use only built-in rules
 		yaraRules = []MalwareSignature{}
 		for name, rule := range enhancedYaraRules {
 			yaraRules = append(yaraRules, MalwareSignature{
@@ -1659,27 +1474,21 @@ func main() {
 		}
 	}
 
-	// 3. Hardware Security Check
 	printSection("HARDWARE SECURITY ASSESSMENT")
 	checkHardwareSecurity(&evidence)
 
-	// 4. Firmware Integrity Check
 	printSection("FIRMWARE INTEGRITY CHECK")
 	checkFirmwareIntegrity(&evidence)
 
-	// 5. UEFI Threat Scan
 	printSection("UEFI THREAT SCAN")
 	scanForThreats(&evidence, yaraRules)
 
-	// 6. NVRAM Validation
 	printSection("NVRAM VALIDATION")
 	validateNVRAM(&evidence)
 
-	// 7. Vulnerability Check
 	printSection("VULNERABILITY ASSESSMENT")
 	checkVulnerabilities(&evidence)
 
-	// 8. Generate Reports
 	printSection("REPORT GENERATION")
 	generateReport(&evidence)
 
