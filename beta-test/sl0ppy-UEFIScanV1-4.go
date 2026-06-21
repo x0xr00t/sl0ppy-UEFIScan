@@ -29,15 +29,15 @@ import (
 
 // --- Color Scheme ---
 var (
-	headerColor    = color.New(color.FgHiCyan, color.Bold)
-	sectionColor   = color.New(color.FgHiMagenta, color.Bold)
+	headerColor     = color.New(color.FgHiCyan, color.Bold)
+	sectionColor    = color.New(color.FgHiMagenta, color.Bold)
 	subSectionColor = color.New(color.FgCyan)
-	successColor   = color.New(color.FgGreen, color.Bold)
-	warningColor   = color.New(color.FgYellow, color.Bold)
-	criticalColor  = color.New(color.FgRed, color.Bold)
-	infoColor      = color.New(color.FgBlue)
-	debugColor     = color.New(color.FgHiBlack)
-	highlightColor = color.New(color.FgHiWhite, color.Bold)
+	successColor    = color.New(color.FgGreen, color.Bold)
+	warningColor    = color.New(color.FgYellow, color.Bold)
+	criticalColor   = color.New(color.FgRed, color.Bold)
+	infoColor       = color.New(color.FgBlue)
+	debugColor      = color.New(color.FgHiBlack)
+	highlightColor  = color.New(color.FgHiWhite, color.Bold)
 
 	okStatus        = successColor.Sprintf("✓")
 	warnStatus      = warningColor.Sprintf("⚠")
@@ -49,7 +49,7 @@ var (
 
 // --- Config ---
 const (
-	Version           = "5.3"
+	Version           = "1.4"
 	YaraRulesDir      = "/tmp/sl0ppy_yara_rules_2025"
 	LocalRulesFile    = "/etc/sl0ppy/yara_rules_2025.custom"
 	RuleUpdateTimeout = 60 * time.Second
@@ -182,26 +182,26 @@ rule UEFI_Firmware_Tampering {
     meta:
         description = "Detects unauthorized firmware modifications"
         severity = "CRITICAL"
+        category = "Tampering"
     strings:
         $fv_corrupt = {00 00 00 00 00 00 00 00}
         $dxe_anomaly = {48 83 EC 28 48 8B 05 ?? ?? ?? ?? 48 85 C0 74 ?? 48 8B 40 10}
     condition:
         any of them
-}
-`,
+}`,
 	"UEFI_Hydrophobia": `
 rule UEFI_Hydrophobia {
     meta:
         description = "Detects Hydrophobia Secure Boot bypass (CVE-2025-47827)"
         reference = "https://eclypsium.com/blog/hydrophobia-secure-boot-bypass-vulnerabilities/"
         severity = "CRITICAL"
+        category = "Evasion"
     strings:
         $hydro_nvram = {48 8D 15 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 1E 48 8B 05 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ??}
         $hydro_smm = {48 C7 C0 00 00 00 00 0F 22 C0}
     condition:
         any of them
-}
-`,
+}`,
 	"UEFI_SecureBoot_Bypass": `
 rule UEFI_SecureBoot_Bypass {
     meta:
@@ -214,8 +214,7 @@ rule UEFI_SecureBoot_Bypass {
         $msft_cert_abuse = "Microsoft Corporation UEFI CA 2011" wide ascii
     condition:
         any of them
-}
-`,
+}`,
 	"UEFI_SMM_HOOK_Generic": `
 rule UEFI_SMM_Hook_Generic {
     meta:
@@ -229,8 +228,7 @@ rule UEFI_SMM_Hook_Generic {
         $smm_mem_write = {48 89 05 ?? ?? ?? ?? 48 85 C0 74 ?? 48 8B 05 ?? ?? ?? ??}
     condition:
         any of them
-}
-`,
+}`,
 	"UEFI_SPI_Flash_Manipulation": `
 rule UEFI_SPI_Flash_Manipulation {
     meta:
@@ -243,8 +241,7 @@ rule UEFI_SPI_Flash_Manipulation {
         $fv_header = {55 AA}
     condition:
         any of them
-}
-`,
+}`,
 }
 
 // --- YARA Rule Sources ---
@@ -300,15 +297,15 @@ var uefiVulnerabilities2025 = []VulnerabilityCheck{
 // --- Helper Functions ---
 func printHeader() {
 	headerColor.Println(`
- SSS  l  000                     U   U EEEE FFFF III  SSS 
-S     l 0  00                    U   U E    F     I  S  
- SSS  l 0 0 0 ppp  ppp  y  y --- U   U EEE  FFF   I   SSS   ccc  aa nnn  
-    S l 00  0 p  p p  p y  y     U   U E    F     I      S c    a a n  n 
-SSSS  l  000  ppp  ppp   yyy      UUU  EEEE F    III SSSS   ccc aaa n  n 
-              p    p       y 
-              p    p    yyy 
+ SSS  l  000                     U   U EEEE FFFF III  SSS
+S     l 0  00                    U   U E    F     I  S
+ SSS  l 0 0 0 ppp  ppp  y  y --- U   U EEE  FFF   I   SSS   ccc  aa nnn
+    S l 00  0 p  p p  p y  y     U   U E    F     I      S c    a a n  n
+SSSS  l  000  ppp  ppp   yyy      UUU  EEEE F    III SSSS   ccc aaa n  n
+              p    p       y
+              p    p    yyy
 `)
-	infoColor.Printf("sl0ppy UEFI Scan v1.1 v%s - Comprehensive UEFI Forensic Tool\n", Version)
+	infoColor.Printf("sl0ppy UEFI Scan v1.4 - Comprehensive UEFI Forensic Tool\n")
 	infoColor.Println("==================================================")
 }
 
@@ -469,10 +466,11 @@ func updateYARARules() ([]string, error) {
 		printStatus("SUCCESS", "Successfully updated: %s", rule.Filename)
 	}
 
+	// Write built-in rules
 	builtInRules := filepath.Join(YaraRulesDir, "built_in_rules.yar")
 	var builtInContent strings.Builder
-	for _, rule := range enhancedYaraRules {
-		builtInContent.WriteString("\n")
+	for name, rule := range enhancedYaraRules {
+		builtInContent.WriteString("\n// --- " + name + " ---\n")
 		builtInContent.WriteString(rule)
 		builtInContent.WriteString("\n")
 	}
@@ -495,6 +493,7 @@ func updateYARARules() ([]string, error) {
 func loadYARARules() ([]MalwareSignature, error) {
 	var rules []MalwareSignature
 
+	// Load built-in rules
 	for name, rule := range enhancedYaraRules {
 		version := "1.0"
 		if strings.Contains(name, "_2025") {
@@ -510,6 +509,8 @@ func loadYARARules() ([]MalwareSignature, error) {
 			category = "Evasion"
 		} else if strings.Contains(rule, `category = "Persistence"`) {
 			category = "Persistence"
+		} else if strings.Contains(rule, `category = "Tampering"`) {
+			category = "Tampering"
 		}
 
 		severity := "HIGH"
@@ -530,6 +531,7 @@ func loadYARARules() ([]MalwareSignature, error) {
 		})
 	}
 
+	// Load downloaded rules
 	entries, err := os.ReadDir(YaraRulesDir)
 	if err != nil {
 		return rules, fmt.Errorf("failed to read rules directory: %v", err)
@@ -568,52 +570,53 @@ func loadYARARules() ([]MalwareSignature, error) {
 func parseYARAFile(filePath, content string) ([]MalwareSignature, error) {
 	var rules []MalwareSignature
 
-	re := regexp.MustCompile(`(?is)rule\s+([^{\s]+)\s*{(.*?)\n}`)
-	matches := re.FindAllStringSubmatch(content, -1)
-	if len(matches) == 0 {
-		re2 := regexp.MustCompile(`(?is)rule\s+([^{\s]+)\s*{(.*?)}\s*`)
-		matches = re2.FindAllStringSubmatch(content, -1)
-	}
-
-	for _, m := range matches {
-		if len(m) < 3 {
+	// Split into individual rules
+	ruleBlocks := regexp.MustCompile(`(?is)rule\s+([a-zA-Z0-9_]+)\s*{(.*?)(?=\nrule\s+|$)}`).FindAllStringSubmatch(content, -1)
+	for _, block := range ruleBlocks {
+		if len(block) < 3 {
 			continue
 		}
-		ruleName := strings.TrimSpace(m[1])
-		ruleBody := m[2]
+		ruleName := strings.TrimSpace(block[1])
+		ruleBody := block[2]
 		fullRule := "rule " + ruleName + " {" + ruleBody + "\n}"
 
+		// Extract metadata
 		severity := "MEDIUM"
 		category := "Unknown"
 		version := "1.0"
 		cve := ""
 
-		metaRe := regexp.MustCompile(`(?is)meta\s*:(.*?)(?:strings:|condition:)`)
+		metaRe := regexp.MustCompile(`(?is)meta\s*:(.*?)(?=\n\s*strings:|\n\s*condition:|$)`)
 		metaMatch := metaRe.FindStringSubmatch(ruleBody)
 		if len(metaMatch) > 1 {
 			metaContent := metaMatch[1]
 
+			// Extract severity
 			severityRe := regexp.MustCompile(`(?i)severity\s*=\s*"(.*?)"`)
 			if sm := severityRe.FindStringSubmatch(metaContent); len(sm) > 1 {
 				severity = strings.ToUpper(strings.TrimSpace(sm[1]))
 			}
 
+			// Extract category
 			categoryRe := regexp.MustCompile(`(?i)category\s*=\s*"(.*?)"`)
 			if cm := categoryRe.FindStringSubmatch(metaContent); len(cm) > 1 {
 				category = strings.TrimSpace(cm[1])
 			}
 
+			// Extract version
 			versionRe := regexp.MustCompile(`(?i)version\s*=\s*"(.*?)"`)
 			if vm := versionRe.FindStringSubmatch(metaContent); len(vm) > 1 {
 				version = strings.TrimSpace(vm[1])
 			}
 
+			// Extract CVE
 			cveRe := regexp.MustCompile(`CVE-\d{4}-\d+`)
 			if cv := cveRe.FindString(metaContent); cv != "" {
 				cve = cv
 			}
 		}
 
+		// Set confirmation requirement
 		confirmationReq := 1
 		lowerName := strings.ToLower(ruleName)
 		if strings.Contains(lowerName, "bootkit") || strings.Contains(strings.ToLower(category), "bootkit") {
@@ -622,6 +625,7 @@ func parseYARAFile(filePath, content string) ([]MalwareSignature, error) {
 			confirmationReq = 3
 		}
 
+		// Get last updated time
 		fileInfo, _ := os.Stat(filePath)
 		lastUpdated := "unknown"
 		if fileInfo != nil {
@@ -716,6 +720,7 @@ func getNVRAMFix(name, value string) string {
 }
 
 func readNVRAMVariable(name string) (string, error) {
+	// Try using efivar command first
 	cmd := exec.Command("efivar", "-n", name, "-p")
 	output, err := cmd.CombinedOutput()
 	if err == nil {
@@ -731,6 +736,7 @@ func readNVRAMVariable(name string) (string, error) {
 		return hex.EncodeToString(output), nil
 	}
 
+	// Fallback: read from /sys/firmware/efi/efivars
 	efivarPath := filepath.Join("/sys/firmware/efi/efivars/", name+"-*")
 	matches, err := filepath.Glob(efivarPath)
 	if err != nil || len(matches) == 0 {
@@ -742,6 +748,7 @@ func readNVRAMVariable(name string) (string, error) {
 		return "", fmt.Errorf("failed to read %s: %v", name, err)
 	}
 
+	// Skip the first 4 bytes (attributes)
 	if len(data) > 4 {
 		data = data[4:]
 	}
@@ -760,6 +767,7 @@ func readNVRAMVariable(name string) (string, error) {
 func checkHardwareSecurity(evidence *Evidence) {
 	printSubSection("Hardware Security Check")
 
+	// Check Intel TXT
 	txtEnabled, err := checkIntelTXT()
 	if err != nil {
 		printStatus("WARNING", "Intel TXT check failed: %v", err)
@@ -772,6 +780,7 @@ func checkHardwareSecurity(evidence *Evidence) {
 		}
 	}
 
+	// Check TPM
 	tpmVersion, tpmPresent, err := checkTPM()
 	if err != nil {
 		printStatus("WARNING", "TPM check failed: %v", err)
@@ -785,6 +794,7 @@ func checkHardwareSecurity(evidence *Evidence) {
 		}
 	}
 
+	// Check Secure Boot
 	secureBoot, err := checkSecureBoot()
 	if err != nil {
 		printStatus("WARNING", "Secure Boot check failed: %v", err)
@@ -797,6 +807,7 @@ func checkHardwareSecurity(evidence *Evidence) {
 		}
 	}
 
+	// Check SPI Lock
 	spiLock, err := checkSPILock()
 	if err != nil {
 		printStatus("WARNING", "SPI Lock check failed: %v", err)
@@ -809,6 +820,7 @@ func checkHardwareSecurity(evidence *Evidence) {
 		}
 	}
 
+	// Check Measured Boot
 	measuredBoot, err := checkMeasuredBoot()
 	if err != nil {
 		printStatus("WARNING", "Measured Boot check failed: %v", err)
@@ -821,6 +833,7 @@ func checkHardwareSecurity(evidence *Evidence) {
 		}
 	}
 
+	// Check Virtualization
 	evidence.Hardware.Virtualization = checkVirtualization()
 	printStatus("INFO", "Virtualization: %s", evidence.Hardware.Virtualization)
 	if evidence.Hardware.Virtualization != "none" {
@@ -838,6 +851,7 @@ func checkIntelTXT() (bool, error) {
 }
 
 func checkTPM() (string, bool, error) {
+	// Try tpm2_getrandom first
 	cmd := exec.Command("tpm2_getrandom", "8")
 	err := cmd.Run()
 	if err == nil {
@@ -849,6 +863,7 @@ func checkTPM() (string, bool, error) {
 		return "1.2", true, nil
 	}
 
+	// Fallback: check /dev/tpm0
 	if _, err := os.Stat("/dev/tpm0"); err == nil {
 		return "unknown", true, nil
 	}
@@ -870,6 +885,7 @@ func checkSecureBoot() (string, error) {
 }
 
 func checkSPILock() (bool, error) {
+	// Check via /sys/class/mtd
 	if _, err := os.Stat("/sys/class/mtd/mtd0/flags"); err == nil {
 		content, err := os.ReadFile("/sys/class/mtd/mtd0/flags")
 		if err != nil {
@@ -878,12 +894,14 @@ func checkSPILock() (bool, error) {
 		return strings.Contains(string(content), "WP"), nil
 	}
 
+	// Check via flashrom
 	cmd := exec.Command("flashrom", "--wp-status")
 	output, err := cmd.CombinedOutput()
 	if err == nil && strings.Contains(string(output), "WP: enabled") {
 		return true, nil
 	}
 
+	// Check via dmidecode
 	cmd = exec.Command("dmidecode", "-t", "bios")
 	output, err = cmd.Output()
 	if err == nil {
@@ -898,16 +916,19 @@ func checkSPILock() (bool, error) {
 }
 
 func checkMeasuredBoot() (bool, error) {
+	// Check for IMA measurements
 	if _, err := os.Stat("/sys/kernel/security/ima/ascii_runtime_measurements"); err == nil {
 		return true, nil
 	}
 
+	// Check for TPM PCR readings
 	cmd := exec.Command("tpm2_pcrread", "sha256:0,1,2,3,4,5,6,7")
 	err := cmd.Run()
 	if err == nil {
 		return true, nil
 	}
 
+	// Check dmesg for TPM/TCPA
 	cmd = exec.Command("dmesg")
 	output, err := cmd.Output()
 	if err != nil {
@@ -920,6 +941,7 @@ func checkMeasuredBoot() (bool, error) {
 }
 
 func checkVirtualization() string {
+	// Check /sys/class/dmi/id/product_name
 	if content, err := os.ReadFile("/sys/class/dmi/id/product_name"); err == nil {
 		product := strings.ToLower(string(content))
 		if strings.Contains(product, "virtual") ||
@@ -932,6 +954,7 @@ func checkVirtualization() string {
 		}
 	}
 
+	// Check /proc/cpuinfo for hypervisor flag
 	if content, err := os.ReadFile("/proc/cpuinfo"); err == nil {
 		if strings.Contains(string(content), "hypervisor") {
 			return "detected"
@@ -951,12 +974,14 @@ func checkVulnerabilities(evidence *Evidence) {
 
 		switch vuln.CVE {
 		case "CVE-2023-20569":
+			// Check for suspicious SMM variables
 			files, _ := filepath.Glob("/sys/firmware/efi/efivars/*Smm*")
 			if len(files) > 3 {
 				detected = true
 				details = fmt.Sprintf("Found %d suspicious SMM-related variables", len(files))
 			}
 		case "CVE-2023-33742":
+			// Check Secure Boot status
 			secureBoot, _ := checkSecureBoot()
 			if secureBoot != "enabled" {
 				detected = true
@@ -1000,6 +1025,13 @@ func checkFirmwareIntegrity(evidence *Evidence) {
 		hash, err := hashFirmwareRegion(region.Start, region.End)
 		if err != nil {
 			printStatus("WARNING", "Failed to hash %s region: %v", region.Name, err)
+			evidence.Firmware = append(evidence.Firmware, FirmwareCheck{
+				Region:   region.Name,
+				Hash:     "ERROR",
+				Expected: region.Expected,
+				Status:   "ERROR",
+				TPMBound: region.TPMBound,
+			})
 			continue
 		}
 
@@ -1021,6 +1053,7 @@ func checkFirmwareIntegrity(evidence *Evidence) {
 }
 
 func hashFirmwareRegion(start, end uint64) (string, error) {
+	// Try using flashrom first
 	cmd := exec.Command("flashrom", "-r", "/tmp/firmware_dump.bin", "--layout", fmt.Sprintf("%x:%x", start, end))
 	err := cmd.Run()
 	if err == nil {
@@ -1032,9 +1065,10 @@ func hashFirmwareRegion(start, end uint64) (string, error) {
 		}
 	}
 
+	// Fallback: read from /dev/mem
 	file, err := os.Open("/dev/mem")
 	if err != nil {
-		return "", fmt.Errorf("failed to open /dev/mem: %v", err)
+		return "", fmt.Errorf("failed to open /dev/mem: %v (try running as root)", err)
 	}
 	defer file.Close()
 
@@ -1082,6 +1116,7 @@ func scanForThreats(evidence *Evidence, rules []MalwareSignature) {
 			}
 			totalFilesScanned++
 			printStatus("INFO", "Scanning file: %s", file)
+
 			for _, rule := range rules {
 				totalRulesApplied++
 				matches, err := scanFileWithYARA(file, rule.Pattern)
@@ -1112,6 +1147,7 @@ func scanForThreats(evidence *Evidence, rules []MalwareSignature) {
 }
 
 func scanFileWithYARA(filePath, rule string) ([]YARAMatch, error) {
+	// Try using go-yara first
 	compiler, err := yara.NewCompiler()
 	if err != nil {
 		return fallbackYARAScan(filePath, rule)
@@ -1164,7 +1200,12 @@ func fallbackYARAScan(filePath, rule string) ([]YARAMatch, error) {
 	lcContent := strings.ToLower(string(content))
 	lcRule := strings.ToLower(rule)
 
-	keywords := []string{"backdoor", "smm", "secureboot", "microsoft", "efi_simple_network_protocol", "lojax", "moonbounce", "blacklotus", "hydrophobia", "spi", "flash"}
+	// Check for keywords
+	keywords := []string{
+		"backdoor", "smm", "secureboot", "microsoft",
+		"efi_simple_network_protocol", "lojax", "moonbounce",
+		"blacklotus", "hydrophobia", "spi", "flash",
+	}
 	for _, k := range keywords {
 		if strings.Contains(lcRule, k) && strings.Contains(lcContent, k) {
 			return []YARAMatch{
@@ -1178,6 +1219,7 @@ func fallbackYARAScan(filePath, rule string) ([]YARAMatch, error) {
 		}
 	}
 
+	// Check for hex patterns
 	hexRe := regexp.MustCompile(`\{([0-9A-Fa-fx\?\s]+)\}`)
 	hexMatches := hexRe.FindAllStringSubmatch(rule, -1)
 	for _, hm := range hexMatches {
@@ -1200,15 +1242,18 @@ func fallbackYARAScan(filePath, rule string) ([]YARAMatch, error) {
 		}
 		if token != "" {
 			b, err := hex.DecodeString(token)
-			if err == nil && len(b) > 0 && strings.Contains(string(content), string(b)) {
-				return []YARAMatch{
-					{
-						FilePath: filePath,
-						String:   fmt.Sprintf("hexseq:%s", token),
-						Offset:   "0x0",
-						Data:     hex.EncodeToString(b),
-					},
-				}, nil
+			if err == nil && len(b) > 0 {
+				contentStr := string(content)
+				if strings.Contains(contentStr, string(b)) {
+					return []YARAMatch{
+						{
+							FilePath: filePath,
+							String:   fmt.Sprintf("hexseq:%s", token),
+							Offset:   "0x0",
+							Data:     hex.EncodeToString(b),
+						},
+					}, nil
+				}
 			}
 		}
 	}
@@ -1228,6 +1273,7 @@ func generateReport(evidence *Evidence) {
 	reportPath := filepath.Join(reportDir, fmt.Sprintf("report_%s.json", timestamp))
 	summaryPath := filepath.Join(reportDir, fmt.Sprintf("summary_%s.txt", timestamp))
 
+	// Generate JSON report
 	report, err := json.MarshalIndent(evidence, "", "  ")
 	if err != nil {
 		printStatus("CRITICAL", "Failed to generate JSON report: %v", err)
@@ -1239,6 +1285,7 @@ func generateReport(evidence *Evidence) {
 		}
 	}
 
+	// Generate summary report
 	if err := generateSummaryReport(evidence, summaryPath); err != nil {
 		printStatus("CRITICAL", "Failed to write summary report: %v", err)
 	} else {
@@ -1249,7 +1296,7 @@ func generateReport(evidence *Evidence) {
 func generateSummaryReport(evidence *Evidence, path string) error {
 	criticalFirmware := 0
 	for _, fw := range evidence.Firmware {
-		if strings.Contains(fw.Status, "CRITICAL") {
+		if fw.Status == "CRITICAL" {
 			criticalFirmware++
 		}
 	}
@@ -1275,48 +1322,52 @@ func generateSummaryReport(evidence *Evidence, path string) error {
 		}
 	}
 
-	content := fmt.Sprintf(
-		"==================================================\n"+
-			"=            sl0ppy UEFI Scan Summary v%s           =\n"+
-			"=          [ COMPREHENSIVE UEFI ANALYSIS ]        =\n"+
-			"==================================================\n\n"+
-			"Hostname: %s\n"+
-			"Timestamp: %s\n"+
-			"Scan Version: %s\n"+
-			"Rules Updated From: %s\n\n",
-		evidence.Version, evidence.Hostname, evidence.Timestamp, evidence.Version,
-		strings.Join(evidence.RulesUpdated, ", "))
+	// Build summary content
+	var content strings.Builder
 
-	content += "=== [ SYSTEM OVERVIEW ] ==========================\n"
-	content += fmt.Sprintf("Virtualization: %s\n", evidence.Hardware.Virtualization)
-	content += fmt.Sprintf("Intel TXT: %t\n", evidence.Hardware.IntelTXT)
-	content += fmt.Sprintf("TPM: %t (Version: %s)\n", evidence.Hardware.TPM, evidence.Hardware.TPMVersion)
-	content += fmt.Sprintf("Secure Boot: %s\n", evidence.Hardware.SecureBoot)
-	content += fmt.Sprintf("SPI Lock: %t\n", evidence.Hardware.SPILock)
-	content += fmt.Sprintf("Measured Boot: %t\n\n", evidence.Hardware.MeasuredBoot)
+	content.WriteString("==================================================\n")
+	content.WriteString(fmt.Sprintf("=            sl0ppy UEFI Scan Summary v%s           =\n", evidence.Version))
+	content.WriteString("=          [ COMPREHENSIVE UEFI ANALYSIS ]        =\n")
+	content.WriteString("==================================================\n\n")
 
-	content += "=== [ FIRMWARE INTEGRITY ] =====================\n"
+	content.WriteString(fmt.Sprintf("Hostname: %s\n", evidence.Hostname))
+	content.WriteString(fmt.Sprintf("Timestamp: %s\n", evidence.Timestamp))
+	content.WriteString(fmt.Sprintf("Scan Version: %s\n", evidence.Version))
+	content.WriteString(fmt.Sprintf("Rules Updated From: %s\n\n", strings.Join(evidence.RulesUpdated, ", ")))
+
+	// System Overview
+	content.WriteString("=== [ SYSTEM OVERVIEW ] ==========================\n")
+	content.WriteString(fmt.Sprintf("Virtualization: %s\n", evidence.Hardware.Virtualization))
+	content.WriteString(fmt.Sprintf("Intel TXT: %t\n", evidence.Hardware.IntelTXT))
+	content.WriteString(fmt.Sprintf("TPM: %t (Version: %s)\n", evidence.Hardware.TPM, evidence.Hardware.TPMVersion))
+	content.WriteString(fmt.Sprintf("Secure Boot: %s\n", evidence.Hardware.SecureBoot))
+	content.WriteString(fmt.Sprintf("SPI Lock: %t\n", evidence.Hardware.SPILock))
+	content.WriteString(fmt.Sprintf("Measured Boot: %t\n\n", evidence.Hardware.MeasuredBoot))
+
+	// Firmware Integrity
+	content.WriteString("=== [ FIRMWARE INTEGRITY ] =====================\n")
 	if criticalFirmware > 0 {
-		content += criticalColor.Sprintf("⚠ CRITICAL: %d firmware integrity issues detected\n", criticalFirmware)
+		content.WriteString(criticalColor.Sprintf("⚠ CRITICAL: %d firmware integrity issues detected\n", criticalFirmware))
 	} else {
-		content += successColor.Sprintf("✓ All firmware regions appear intact\n")
+		content.WriteString(successColor.Sprintf("✓ All firmware regions appear intact\n"))
 	}
 	for _, fw := range evidence.Firmware {
 		status := "OK"
-		if strings.Contains(fw.Status, "CRITICAL") {
+		if fw.Status == "CRITICAL" {
 			status = criticalColor.Sprintf("CRITICAL")
-		} else if strings.Contains(fw.Status, "WARNING") {
+		} else if fw.Status == "WARNING" {
 			status = warningColor.Sprintf("WARNING")
 		}
-		content += fmt.Sprintf("  %-12s: %s\n", fw.Region, status)
+		content.WriteString(fmt.Sprintf("  %-12s: %s\n", fw.Region, status))
 	}
-	content += "\n"
+	content.WriteString("\n")
 
-	content += "=== [ UEFI THREAT DETECTION ] ====================\n"
+	// UEFI Threat Detection
+	content.WriteString("=== [ UEFI THREAT DETECTION ] ====================\n")
 	if criticalThreats > 0 {
-		content += criticalColor.Sprintf("⚠ CRITICAL: %d high-severity threats detected\n", criticalThreats)
+		content.WriteString(criticalColor.Sprintf("⚠ CRITICAL: %d high-severity threats detected\n", criticalThreats))
 	} else {
-		content += successColor.Sprintf("✓ No critical UEFI threats detected\n")
+		content.WriteString(successColor.Sprintf("✓ No critical UEFI threats detected\n"))
 	}
 
 	for _, malware := range evidence.Malware {
@@ -1329,26 +1380,27 @@ func generateSummaryReport(evidence *Evidence, path string) error {
 			severityColor = criticalColor
 		}
 
-		content += fmt.Sprintf("  %-20s %-12s %s (%d indicators)\n",
+		content.WriteString(fmt.Sprintf("  %-20s %-12s %s (%d indicators)\n",
 			severityColor.Sprintf(malware.Name),
 			severityColor.Sprintf("["+malware.Severity+"]"),
 			malware.Category,
-			malware.Indicators)
+			malware.Indicators))
 
 		if len(malware.Matches) > 0 {
-			content += "    Matches:\n"
+			content.WriteString("    Matches:\n")
 			for _, match := range malware.Matches {
-				content += fmt.Sprintf("      - %s: %s at %s\n", match.FilePath, match.String, match.Offset)
+				content.WriteString(fmt.Sprintf("      - %s: %s at %s\n", match.FilePath, match.String, match.Offset))
 			}
 		}
 	}
-	content += "\n"
+	content.WriteString("\n")
 
-	content += "=== [ NVRAM SECURITY ] ==========================\n"
+	// NVRAM Security
+	content.WriteString("=== [ NVRAM SECURITY ] ==========================\n")
 	if criticalNVRAM > 0 {
-		content += criticalColor.Sprintf("⚠ CRITICAL: %d NVRAM security issues detected\n", criticalNVRAM)
+		content.WriteString(criticalColor.Sprintf("⚠ CRITICAL: %d NVRAM security issues detected\n", criticalNVRAM))
 	} else {
-		content += successColor.Sprintf("✓ All NVRAM variables appear secure\n")
+		content.WriteString(successColor.Sprintf("✓ All NVRAM variables appear secure\n"))
 	}
 
 	for _, nvram := range evidence.NVRAM {
@@ -1356,18 +1408,19 @@ func generateSummaryReport(evidence *Evidence, path string) error {
 		if !nvram.Valid {
 			status = criticalColor.Sprintf("INVALID")
 		}
-		content += fmt.Sprintf("  %-15s: %s (%s)\n", nvram.Name, nvram.Value, status)
+		content.WriteString(fmt.Sprintf("  %-15s: %s (%s)\n", nvram.Name, nvram.Value, status))
 		if !nvram.Valid && nvram.Fix != "" {
-			content += fmt.Sprintf("    Fix: %s\n", nvram.Fix)
+			content.WriteString(fmt.Sprintf("    Fix: %s\n", nvram.Fix))
 		}
 	}
-	content += "\n"
+	content.WriteString("\n")
 
-	content += "=== [ VULNERABILITIES ] =========================\n"
+	// Vulnerabilities
+	content.WriteString("=== [ VULNERABILITIES ] =========================\n")
 	if vulnCount > 0 {
-		content += criticalColor.Sprintf("⚠ CRITICAL: %d vulnerabilities detected\n", vulnCount)
+		content.WriteString(criticalColor.Sprintf("⚠ CRITICAL: %d vulnerabilities detected\n", vulnCount))
 	} else {
-		content += successColor.Sprintf("✓ No known vulnerabilities detected\n")
+		content.WriteString(successColor.Sprintf("✓ No known vulnerabilities detected\n"))
 	}
 
 	for _, vuln := range evidence.Vulnerabilities {
@@ -1380,62 +1433,68 @@ func generateSummaryReport(evidence *Evidence, path string) error {
 			severityColor = criticalColor
 		}
 
-		content += fmt.Sprintf("  %-30s %-12s %s\n",
+		content.WriteString(fmt.Sprintf("  %-30s %-12s %s\n",
 			vuln.Name,
 			severityColor.Sprintf("["+vuln.Severity+"]"),
-			vuln.CVE)
+			vuln.CVE))
 
-		content += fmt.Sprintf("    Description: %s\n", vuln.Description)
-		content += fmt.Sprintf("    Fix: %s\n", vuln.Fix)
-		content += fmt.Sprintf("    Reference: %s\n", vuln.Reference)
+		content.WriteString(fmt.Sprintf("    Description: %s\n", vuln.Description))
+		content.WriteString(fmt.Sprintf("    Fix: %s\n", vuln.Fix))
+		content.WriteString(fmt.Sprintf("    Reference: %s\n", vuln.Reference))
 	}
-	content += "\n"
+	content.WriteString("\n")
 
+	// Recommendations
 	if len(evidence.Recommendations) > 0 {
-		content += "=== [ SECURITY RECOMMENDATIONS ] ================\n"
+		content.WriteString("=== [ SECURITY RECOMMENDATIONS ] ================\n")
 		for i, rec := range evidence.Recommendations {
-			content += fmt.Sprintf("  [%02d] %s\n", i+1, rec)
+			content.WriteString(fmt.Sprintf("  [%02d] %s\n", i+1, rec))
 		}
-		content += "\n"
+		content.WriteString("\n")
 	}
 
-	content += "=== [ SCAN STATISTICS ] =========================\n"
-	content += fmt.Sprintf("  %-30s: %d\n", "Critical firmware issues", criticalFirmware)
-	content += fmt.Sprintf("  %-30s: %d\n", "Critical threats detected", criticalThreats)
-	content += fmt.Sprintf("  %-30s: %d\n", "NVRAM security issues", criticalNVRAM)
-	content += fmt.Sprintf("  %-30s: %d\n", "Known vulnerabilities", vulnCount)
+	// Scan Statistics
+	content.WriteString("=== [ SCAN STATISTICS ] =========================\n")
+	content.WriteString(fmt.Sprintf("  %-30s: %d\n", "Critical firmware issues", criticalFirmware))
+	content.WriteString(fmt.Sprintf("  %-30s: %d\n", "Critical threats detected", criticalThreats))
+	content.WriteString(fmt.Sprintf("  %-30s: %d\n", "NVRAM security issues", criticalNVRAM))
+	content.WriteString(fmt.Sprintf("  %-30s: %d\n", "Known vulnerabilities", vulnCount))
 
+	// Final Assessment
 	if criticalFirmware > 0 || criticalThreats > 0 || criticalNVRAM > 0 || vulnCount > 0 {
-		content += "\n" + criticalColor.Sprintf("⚠ SYSTEM COMPROMISE LIKELY!\n")
-		content += criticalColor.Sprintf("   Immediate action recommended:\n")
-		content += criticalColor.Sprintf("   1. Isolate the system from network\n")
-		content += criticalColor.Sprintf("   2. Review all security recommendations\n")
-		content += criticalColor.Sprintf("   3. Consider firmware reflash or hardware replacement\n")
+		content.WriteString("\n" + criticalColor.Sprintf("⚠ SYSTEM COMPROMISE LIKELY!\n"))
+		content.WriteString(criticalColor.Sprintf("   Immediate action recommended:\n"))
+		content.WriteString(criticalColor.Sprintf("   1. Isolate the system from network\n"))
+		content.WriteString(criticalColor.Sprintf("   2. Review all security recommendations\n"))
+		content.WriteString(criticalColor.Sprintf("   3. Consider firmware reflash or hardware replacement\n"))
 	} else {
-		content += "\n" + successColor.Sprintf("✓ SYSTEM APPEARS SECURE\n")
-		content += infoColor.Sprintf("   No critical issues detected, but:\n")
-		content += infoColor.Sprintf("   - Regular scans are recommended\n")
-		content += infoColor.Sprintf("   - Keep firmware updated\n")
-		content += infoColor.Sprintf("   - Monitor for new vulnerabilities\n")
+		content.WriteString("\n" + successColor.Sprintf("✓ SYSTEM APPEARS SECURE\n"))
+		content.WriteString(infoColor.Sprintf("   No critical issues detected, but:\n"))
+		content.WriteString(infoColor.Sprintf("   - Regular scans are recommended\n"))
+		content.WriteString(infoColor.Sprintf("   - Keep firmware updated\n"))
+		content.WriteString(infoColor.Sprintf("   - Monitor for new vulnerabilities\n"))
 	}
 
-	return os.WriteFile(path, []byte(content), 0644)
+	return os.WriteFile(path, []byte(content.String()), 0644)
 }
 
 // --- Main Function ---
 func main() {
 	printHeader()
 
+	// Check root
 	if !checkRoot() {
 		printStatus("CRITICAL", "This tool requires root privileges. Run with sudo.")
 		os.Exit(1)
 	}
 
+	// Check dependencies
 	if err := checkDependencies(); err != nil {
 		printStatus("CRITICAL", "%v", err)
 		os.Exit(1)
 	}
 
+	// Initialize logging
 	logFile, err := initLogging()
 	if err != nil {
 		printStatus("WARNING", "Failed to initialize logging: %v", err)
@@ -1444,12 +1503,14 @@ func main() {
 		log.Println("=== Starting sl0ppy UEFI Scan ===")
 	}
 
+	// Initialize evidence
 	evidence := Evidence{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Hostname:  getHostname(),
 		Version:   Version,
 	}
 
+	// Update YARA rules
 	printSection("YARA RULES UPDATE")
 	updatedRules, err := updateYARARules()
 	if err != nil {
@@ -1459,9 +1520,11 @@ func main() {
 		printStatus("SUCCESS", "YARA rules updated from: %s", strings.Join(updatedRules, ", "))
 	}
 
+	// Load YARA rules
 	yaraRules, err := loadYARARules()
 	if err != nil {
 		printStatus("CRITICAL", "Failed to load YARA rules: %v", err)
+		// Fallback to built-in rules only
 		yaraRules = []MalwareSignature{}
 		for name, rule := range enhancedYaraRules {
 			yaraRules = append(yaraRules, MalwareSignature{
@@ -1472,8 +1535,10 @@ func main() {
 				Category: "Malware",
 			})
 		}
+		printStatus("INFO", "Falling back to %d built-in YARA rules", len(yaraRules))
 	}
 
+	// Run checks
 	printSection("HARDWARE SECURITY ASSESSMENT")
 	checkHardwareSecurity(&evidence)
 
@@ -1489,6 +1554,7 @@ func main() {
 	printSection("VULNERABILITY ASSESSMENT")
 	checkVulnerabilities(&evidence)
 
+	// Generate reports
 	printSection("REPORT GENERATION")
 	generateReport(&evidence)
 
