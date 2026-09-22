@@ -63,10 +63,12 @@
 
 ### Prerequisites
 ```
-- **Linux system** (tested on Ubuntu 20.04/22.04, Debian 10/11)
+- **Linux system (tested on Kali Linux 2026.2 Rolling, kernel 6.18; also verified on Debian 12/13 and Ubuntu 24.04 LTS)
+Latest verified baseline: Kali 2026.2 (released 29 June 2026), with 2026.1 shipping kernel 6.18 and Xfce 4.20.6 (release notes)
 - **Go 1.16+** (for building from source)
 - **Root privileges** (for full functionality)
 ```
+
 ### Dependencies
 # Install required packages:
 
@@ -87,43 +89,69 @@ sudo install -m 755 sl0ppy-uefiscan /usr/local/bin/
 sudo ./sl0ppy-uefiscan
 ```
 Example Output
-==================================================
-=            sl0ppy UEFI Scanner v1.1           =
-=          [ FULL COVERAGE UEFI ANALYSIS ]        =
-==================================================
-
-## ⚠️  Run with sudo for full functionality!
 ```
-⚠︸  Example: sudo ./sl0ppy-uefiscan
+╔══════════════════════════════════════════════════════════════╗
+║ sl0ppy-UEFIScan v1.4.1 | x0xr00t                             ║
+║ Defensive UEFI / firmware security assessment                ║
+║ Read-only • evidence-first • no firmware/NVRAM writes        ║
+║ Unknown means insufficient evidence, not compromise          ║
+╚══════════════════════════════════════════════════════════════╝
+  Forensics: 3/5 deep  |  Verbose: 1/3  |  Malware: OFF  |  Spyware: OFF  |  Log: disabled
 
-┌───────────────────────────────────────────────
-│ Updating YARA Rules
-└────────────────────────────────────────────---
-  [INFO] Updated YARA rules from: GitHub\:APT_LoJax.yar, MISP, Built-in
-  [INFO] Loaded 23 YARA rules
+  • anti-rollback            ✓  1 finding  (12ms)
+  • bootchain                ✓  2 findings  (45ms)
+  • secureboot               ✓  1 finding  (31ms)
+  • tpm                      ✓  2 findings  (112ms)
+  ... (80+ checks)
 
-┌───────────────────────────────────────────────
-│ System Information
-└────────────────────────────────────────────---
-  [INFO] Running on bare metal
-  [INFO] CPU Information: [details]
-  [INFO] OS Information: [details]
+╔════════════════════════════════════════════════════════════════╗
+║ IMPACT & REMEDIATION OVERVIEW                                 ║
+╚══════════════════════════════════════════════════════════════╝
+ HIGH (3)
+ WARN SB-001 Secure Boot enabled
+  Evidence : SecureBoot disabled
+  Remediate: enable Secure Boot after validating signed boot components
 
-┌───────────────────────────────────────────────
-│ Firmware Integrity Check
-└────────────────────────────────────────────---
-  [✓ OK] BIOS Region: a1b2c3d4... (TPM-bound)
-  [✓ OK] SPI flash write protection is enabled
-Report Location
-All reports are saved to:
-/var/log/sl0ppy_uefi_scan/
+STATUS BREAKDOWN
+  PASS  62     WARN  5     FAIL  0     UNKNOWN  14     NOT_APPLICABLE  7
+```
+## POSTURE METRICS
+  - Evidence-weighted score: 87.42% (GOOD)
 
-JSON report: report_[timestamp].json
-Human-readable summary: summary_[timestamp].txt
+# Key differences from the old block:
+```
+- YARA rule updates are opt-in via -update-yara, not automatic at startup
+- SPI write-protection requires the --flashrom flag (off by default)
+- Malware/spyware hunts are opt-in: --malware / --spyware
+- Forensic depth is configurable 1–5 (--forensics)
+- Report Location
+```
+ # Reports are saved to (default, override with -out):
+```
+./uefiscan-report/
+├── report_[timestamp].json      # full machine-readable report (SIEM-ready)
+├── summary_[timestamp].txt      # human-readable findings + impact overview
+└── manifest_[timestamp].json     # compact index for automation
 
-Automated Scanning (Cron)
-For daily scans at 3 AM:
-echo "0 3 * * * root /path/to/sl0ppy-uefiscan >> /var/log/uefi_daily_scan.log 2>&1" | sudo tee /etc/cron.d/uefi_scan
+```
+
+## Useful invocations
+```
+sudo ./sl0ppy-uefiscan --scan quick                    # fast triage
+sudo ./sl0ppy-uefiscan --scan deep --forensics 5       # maximum depth
+sudo ./sl0ppy-uefiscan --malware --spyware             # threat hunting
+sudo ./sl0ppy-uefiscan --firmware-image bios.bin       # parse a dumped image
+sudo ./sl0ppy-uefiscan -baseline known-good.json      # trusted-baseline diff
+```
+
+
+
+## Automated Scanning (Cron)
+```
+echo "0 3 * * * root /usr/local/bin/sl0ppy-uefiscan --scan quick --no-color \
+  -out /var/log/uefi_scans/$(date +\%F) >> /var/log/uefi_daily_scan.log 2>&1" \
+  | sudo tee /etc/cron.d/uefi_scan
+
 ```
 
 ## 📊 Detection Capabilities
