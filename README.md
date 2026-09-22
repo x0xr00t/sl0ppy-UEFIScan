@@ -155,11 +155,91 @@ echo "0 3 * * * root /usr/local/bin/sl0ppy-uefiscan --scan quick --no-color \
 ```
 
 ## 📊 Detection Capabilities
-# UEFI Threats Detected
+UEFI Threats Hunted (opt-in: --malware / --spyware)
 ```
-BootkitsLoJax, MoonBounce, ESPecterCRITICALRootkitsLightEater, UEFI Rootkit GenericCRITICALSpywareFinFisher, UEFI SpyHIGHRATsUEFI RAT, GodMode SpywareCRITICALExploitsSMM Callout, TianoCore Buffer OverflowCRITICAL
-Vulnerabilities Checked
-CVE-2023-20569SMM Callout VulnerabilityCRITICALCVE-2022-31705TianoCore Buffer OverflowCRITICALCVE-2022-34303Intel ME Privilege EscalationHIGHCVE-2021-28210AMI BIOS SMM VulnerabilityCRITICALCVE-2022-28739UEFI Variable Authentication BypassCRITICAL
+      ## Bootkits
+      - LoJax, MoonBounce, BlackLotus, ESPecter, CosmicStrand, Bootkitty, Bootlicker/DmaBackdoorBoot-style, umap/SandboxBootkit-style
+      CRITICAL
+    
+    ```
+      ## Rootkits / Implants
+      MosaicRegressor, TrickBoot, EfiGuard-derived, PeiBackdoor-style, UEFI generic persistence
+      CRITICAL
+    ```
+    
+      ## Spyware
+      FinSpy/FinFisher, UEFI backdoor keylogger, surveillance behavior chains
+      HIGH–CRITICAL
+    
+    
+      ## 2026 Exposure Checks
+      Vulnerable signed shims ≤0.9 (CVE-2024-7344), BootHole (CVE-2022-21894), LogoFAIL (CVE-2023-40238)
+      HIGH–CRITICAL
+    
+    
+      ## Spyware Behavior Classes
+      Keylogging, screenshot, clipboard, credential/session theft, mic/webcam, EFI networking, collection+network+persistence correlation
+      HIGH
+    
+    
+      ## Generic Detection
+      Hook-chain, relocation/API-resolution, CR0/CR4 manipulation, anti-debug, differential FV hunting
+      Varies
+    
+
+
+# The 2026 hunt packs also include built-in fallback YARA rules (LoJax, MoonBounce, BlackLotus, MosaicRegressor, FinFisher, TrickBoot, UEFI generic) for offline operation.
+
+## Vulnerability Knowledge Base
+
+## CVE-2023-20569
+
+AMD Return Address Predictor (SMM)
+
+CRITICAL
+
+
+## CVE-2023-31705
+
+TianoCore Buffer Overflow
+
+CRITICAL
+
+
+## CVE-2023-33742
+
+UEFI Secure Boot Bypass
+
+CRITICAL
+
+
+## CVE-2023-42756
+```
+InsydeH2O SMI Handler
+
+HIGH
+```
+
+## CVE-2024-0179
+```
+AMD SMM Callout
+
+HIGH
+```
+
+## CVE-2024-21925
+```
+AMD PSP Firmware Input Validation
+
+HIGH
+```
+
+## CVE-2023-20596
+```
+AMD SMM Supervisor
+HIGH
+
+
 ```
 
 ## 🛠 Configuration
