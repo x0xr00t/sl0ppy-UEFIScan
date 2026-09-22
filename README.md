@@ -12,39 +12,50 @@
 
 ```
 
-# v1.3 is done
-
+# v1.4.1 is OUT
 ## 🔍 Features
 
-✅ **Comprehensive UEFI Analysis**
-- Firmware integrity verification (BIOS, ME, EC regions)
-- NVRAM variable validation (12+ critical variables)
-- UEFI threat detection (20+ malware signatures)
-- Hardware security checks (TPM, Intel TXT, Secure Boot)
+## ✅ Comprehensive UEFI Analysis — 80+ read-only checks
+- Firmware integrity & identity (BIOS vendor/version/date via DMI)
+- NVRAM inventory & forensics (SecureBoot, PK/KEK/db/dbx, BootOrder, attributes)
+- Secure Boot state, policy, SBAT, and key-database validation
+- Hardware root of trust: TPM, PCR7, measured boot, TPM event log, Intel TXT
+- SPI flash write-protection probing (opt-in --flashrom)
 
-✅ **Auto-Updating Threat Intelligence**
-- Pulls latest YARA rules from multiple sources:
-  - GitHub Yara-Rules repository
-  - MISP threat intelligence feeds
-  - Local custom rules
-- Built-in fallback rules for offline operation
+## ✅ Native Firmware-Volume Parsing
+- Standalone FV/FFS/section parser — no external dependencies
+- Firmware image parsing via --firmware-image or read-only flashrom acquisition
+- PE/COFF module detection, GUID/section/type reporting, SHA-512 hashing
+- Nested firmware-volume and SMM/DXE/PEI module analysis
 
-✅ **Advanced Detection Capabilities**
-- Multi-stage confirmation system (YARA + NVRAM + module analysis)
-- Confidence scoring (Low/Medium/High)
-- CVE correlation and vulnerability detection
-- Anti-evasion techniques (direct memory access, SPI flash checks)
+## ✅ Opt-in Threat Hunting Pipelines
+- Dedicated --malware and --spyware pipelines with separate profiles
+- 2026 threat-intel correlation for known UEFI bootkit/implant families
+- Structural, string, and behavioral indicators with family/technique breakdown
+- Multi-stage confirmation: signature status + structural + string evidence
+- Confidence scoring (LOW/MEDIUM/HIGH) per indicator
 
-✅ **Enterprise-Grade Reporting**
-- JSON reports for SIEM integration
-- Human-readable summary reports
-- Prioritized recommendations by severity
-- Timestamped logs with full detection details
+## ✅ Auto-Updating Threat Intelligence
+- update-yara pulls the latest defensive YARA rule set
+- Supports GitHub Yara-Rules, MISP feeds, and local custom rules
+- Built-in fallback indicators for offline operation
 
-✅ **Professional Output Formatting**
-- Color-coded results for quick assessment
-- Clear visual hierarchy with section headers
-- Status indicators (✓ OK, ⚠ WARNING, ✗ CRITICAL)
+## ✅ Flexible Scanning Profiles
+- Scan modes: quick, deep, firmware, host, integrity, or per-check selection
+- Forensic depth control 1–5 (triage → full) with per-check level gating
+- Check exclusion (--exclude) and finding-ID filtering (--only)
+
+## ✅ Enterprise-Grade Reporting
+- JSON report, human-readable summary, and manifest for SIEM integration
+- Evidence hashing (SHA-512) for tamper-evident finding records
+- Trusted baseline diffing against a known-good host scan
+- Timestamped optional file logging for full audit trails
+
+## ✅ Professional Output Formatting
+- Color-coded status levels (PASS / WARN / FAIL / UNKNOWN / N/A)
+- Impact & remediation overview with prioritized action queue
+- Evidence-weighted posture score with analyst interpretation notes
+- Terminal verbosity levels 0–3 (--no-color for CI/pipes)
 
 ---
 
