@@ -2556,6 +2556,126 @@ var embeddedSpywareYaraRules = []string{
  condition:
   2 of them
 }`,
+     `rule UEFI_Spyware_Exfil_Indicators {
+ meta:
+  description = "Defensive UEFI network/exfiltration indicators - Extended Version"
+  severity = "HIGH"
+  category = "Spyware"
+ strings:
+  // Originelen
+  $a = "http://" nocase
+  $b = "https://" nocase
+  $c = "user-agent" nocase
+  $d = "post /" nocase
+  $e = "EFI_HTTP_PROTOCOL" nocase
+  $f = "EFI_TCP4_PROTOCOL" nocase
+  $g = "EFI_UDP4_PROTOCOL" nocase
+  $h = "exfil" nocase
+
+  // Nieuwe Netwerk Protocollen
+  $net_tcp6 = "EFI_TCP6_PROTOCOL" nocase
+  $net_udp6 = "EFI_UDP6_PROTOCOL" nocase
+  $net_dns4 = "EFI_DNS4_PROTOCOL" nocase
+  $net_dns6 = "EFI_DNS6_PROTOCOL" nocase
+  $net_ip4 = "EFI_IP4_PROTOCOL" nocase
+  $net_ip6 = "EFI_IP6_PROTOCOL" nocase
+  $net_wifi = "EFI_WIRELESS_MAC_CONNECTION_PROTOCOL" nocase
+  $net_arp = "EFI_ARP_PROTOCOL" nocase
+  $net_dhcp4 = "EFI_DHCP4_PROTOCOL" nocase
+  $net_dhcp6 = "EFI_DHCP6_PROTOCOL" nocase
+
+  // Nieuwe Exfiltratie & HTTP Kenmerken
+  $web_get = "GET /" nocase
+  $web_connect = "CONNECT " nocase
+  $web_ftp = "ftp://" nocase
+  $web_content = "content-type" nocase
+  $web_cookie = "cookie:" nocase
+  $web_accept = "accept:" nocase
+  $web_host = "host:" nocase
+  $web_proxy = "http_proxy" nocase
+  $web_chunk = "transfer-encoding" nocase
+ condition:
+  2 of them
+}`,
+
+  `rule UEFI_Spyware_Persistence_Indicators {
+ meta:
+  description = "Defensive UEFI runtime-variable/persistence indicators - Extended Version"
+  severity = "MEDIUM"
+  category = "Spyware"
+ strings:
+  // Originelen
+  $a = "GetVariable" nocase
+  $b = "SetVariable" nocase
+  $c = "Runtime Services" nocase
+  $d = "BootOrder" nocase
+  $e = "BootNext" nocase
+  $f = "Driver####" nocase
+
+  // Nieuwe NVRAM Variabelen & Handtekeningen
+  $var_setup = "Setup" nocase
+  $var_db = "db" nocase
+  $var_dbx = "dbx" nocase
+  $var_kek = "KEK" nocase
+  $var_pk = "PK" nocase
+  $var_secure = "SecureBoot" nocase
+  $var_audit = "AuditMode" nocase
+  $var_deploy = "DeployedMode" nocase
+  $guid_global = "8BE4DF61-93CA-11d2-AA0D-00E098032B8C"
+
+  // Nieuwe Firmware & SMM Manipulatie API's
+  $smm_comm = "EFI_SMM_COMMUNICATION_PROTOCOL" nocase
+  $smm_cpu = "EFI_SMM_CPU_PROTOCOL" nocase
+  $smm_swi = "EFI_SMM_SW_DISPATCH2_PROTOCOL" nocase
+  $fw_vol = "EFI_FIRMWARE_VOLUME" nocase
+  $fw_write = "WriteSection" nocase
+  $fw_nvram = "EfiFlashMap" nocase
+  $fw_update = "UpdateCapsule" nocase
+ condition:
+  2 of them
+}`,
+
+    `rule UEFI_Spyware_CommandAndControl {
+ meta:
+  description = "Defensive C2/beaconing indicators in firmware artifacts - Extended Version"
+  severity = "HIGH"
+  category = "Spyware"
+ strings:
+  // Originelen
+  $a = "beacon" nocase
+  $b = "command and control" nocase
+  $c = "C2" ascii
+  $d = "socket" nocase
+  $e = "upload" nocase
+
+  // Nieuwe Acties & Payloads
+  $c2_down = "download" nocase
+  $c2_pay = "payload" nocase
+  $c2_exec = "execute" nocase
+  $c2_run = "run" nocase
+  $c2_cmd = "cmd.exe" nocase
+  $c2_shell = "powershell" nocase
+  $c2_inject = "inject" nocase
+  $c2_sleep = "sleep" nocase
+  $c2_delay = "delay" nocase
+
+  // Nieuwe Verduistering & Crypto
+  $crypto_aes = "AES" ascii wide
+  $crypto_rc4 = "RC4" ascii wide
+  $crypto_xor = "XOR" ascii wide
+  $crypto_rsa = "RSA" ascii wide
+  $crypto_base64 = "base64" nocase
+  $crypto_key = "private key" nocase
+
+  // Nieuwe OS Injectie & Hooks
+  $inj_ntos = "ntoskrnl.exe" nocase
+  $inj_hook = "Hook" nocase
+  $inj_patch = "Patch" nocase
+  $inj_pe = "PE32" ascii
+  $inj_mem = "AllocatePool" nocase
+ condition:
+  2 of them
+}`,
 }
 
 var githubYaraRules2025 = []struct {
