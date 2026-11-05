@@ -920,8 +920,82 @@ func checkProcesses(r *Report) {
 func checkInitramfs(r *Report) {
 	kernel := runtimeKernel()
 	patterns := []string{
-		"/boot/initrd*", "/boot/initramfs*", "/boot/init*img",
-		"/usr/lib/modules/" + kernel + "/init*", "/usr/lib/modules/" + kernel + "/*init*",
+		// Standard boot initramfs / initrd locations
+		"/boot/initrd*",
+		"/boot/initramfs*",
+		"/boot/init*img",
+		"/boot/init*",
+		"/boot/*initrd*",
+		"/boot/*initramfs*",
+
+		// Kernel-specific boot artifacts
+		"/boot/initrd-" + kernel + "*",
+		"/boot/initramfs-" + kernel + "*",
+		"/boot/initramfs-" + kernel + "*.img",
+		"/boot/initrd.img-" + kernel + "*",
+		"/boot/initrd-" + kernel + ".img",
+		"/boot/initramfs-" + kernel + ".img",
+		"/boot/initramfs-" + kernel + ".gz",
+		"/boot/initramfs-" + kernel + ".xz",
+		"/boot/initramfs-" + kernel + ".zst",
+		"/boot/initramfs-" + kernel + ".cpio",
+		"/boot/initrd-" + kernel + ".cpio",
+
+		// Debian / Ubuntu / Kali
+		"/boot/initrd.img",
+		"/boot/initrd.img-" + kernel,
+		"/boot/initrd.img-" + kernel + "-*",
+		"/boot/initrd.img.old",
+		"/boot/initrd.img-previous",
+
+		// Fedora / RHEL / Rocky / AlmaLinux
+		"/boot/initramfs-" + kernel + ".img",
+		"/boot/initramfs-" + kernel + "-kdump.img",
+		"/boot/initramfs-" + kernel + "-rescue.img",
+		"/boot/initramfs-*kdump*.img",
+		"/boot/initramfs-*rescue*.img",
+
+		// Arch Linux / mkinitcpio
+		"/boot/initramfs-linux.img",
+		"/boot/initramfs-linux-fallback.img",
+		"/boot/initramfs-linux-*.img",
+		"/boot/initramfs-*.img",
+
+		// UKI / EFI boot artifacts
+		"/boot/EFI/Linux/*.efi",
+		"/boot/efi/EFI/Linux/*.efi",
+		"/efi/EFI/Linux/*.efi",
+		"/EFI/Linux/*.efi",
+
+		// Kernel module tree init-related artifacts
+		"/usr/lib/modules/" + kernel + "/init*",
+		"/usr/lib/modules/" + kernel + "/*init*",
+		"/usr/lib/modules/" + kernel + "/kernel/*init*",
+		"/usr/lib/modules/" + kernel + "/kernel/drivers/*init*",
+		"/lib/modules/" + kernel + "/init*",
+		"/lib/modules/" + kernel + "/*init*",
+		"/lib/modules/" + kernel + "/kernel/*init*",
+
+		// Kernel module tree additional boot components
+		"/usr/lib/modules/" + kernel + "/vmlinuz",
+		"/usr/lib/modules/" + kernel + "/vmlinux",
+		"/usr/lib/modules/" + kernel + "/build/init*",
+		"/usr/lib/modules/" + kernel + "/source/init*",
+
+		// Alternative boot directories
+		"/boot/loader/entries/*",
+		"/boot/grub/*",
+		"/boot/grub2/*",
+		"/boot/extlinux/*",
+
+		// Additional initramfs storage locations
+		"/var/lib/initramfs-tools/*",
+		"/var/lib/dracut/*",
+		"/etc/initramfs-tools/*",
+		"/etc/dracut.conf",
+		"/etc/dracut.conf.d/*",
+		"/etc/mkinitcpio.conf",
+		"/etc/mkinitcpio.conf.d/*",
 	}
 	seen := map[string]bool{}
 	var matches []string
