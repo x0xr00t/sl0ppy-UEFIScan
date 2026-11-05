@@ -12,7 +12,84 @@
 
 ```
 
-# v1.4.1 is OUT
+# v1.4.1.1 is OUT
+
+# change log 1.4.1.1
+```
+1. Extended initramfs / initrd discovery
+- /boot/initrd*
+- /boot/initramfs*
+- /boot/init*img
+- /boot/*initrd*
+- /boot/*initramfs*
+- /boot/initrd.img
+- /boot/initrd.img.old
+- /boot/initrd.img-previous
+- /boot/initrd.img-<kernel>
+- /boot/initrd.img-<kernel>-*
+- /boot/initrd-<kernel>.img
+- /boot/initrd-<kernel>.cpio
+- /boot/initramfs-<kernel>.img
+- /boot/initramfs-<kernel>.gz
+- /boot/initramfs-<kernel>.xz
+- /boot/initramfs-<kernel>.zst
+- /boot/initramfs-<kernel>.cpio
+2. Distribution-specific initramfs
+- /boot/initramfs-linux.img
+- /boot/initramfs-linux-fallback.img
+- /boot/initramfs-linux-*.img
+- /boot/initramfs-*.img
+- /boot/initramfs-<kernel>-kdump.img
+- /boot/initramfs-<kernel>-rescue.img
+- /boot/initramfs-*kdump*.img
+- /boot/initramfs-*rescue*.img
+3. EFI / Unified Kernel Images (UKI)
+- /boot/EFI/Linux/*.efi
+- /boot/efi/EFI/Linux/*.efi
+- /efi/EFI/Linux/*.efi
+- /EFI/Linux/*.efi
+- /boot/*.efi
+- /boot/loader/entries/*
+4. Kernel-specific module/init discovery
+- /usr/lib/modules/<kernel>/init*
+- /usr/lib/modules/<kernel>/*init*
+- /usr/lib/modules/<kernel>/kernel/*init*
+- /usr/lib/modules/<kernel>/kernel/drivers/*init*
+- /usr/lib/modules/<kernel>/vmlinuz
+- /usr/lib/modules/<kernel>/vmlinux
+- /usr/lib/modules/<kernel>/build/init*
+- /usr/lib/modules/<kernel>/source/init*
+- /lib/modules/<kernel>/init*
+- /lib/modules/<kernel>/*init*
+- /lib/modules/<kernel>/kernel/*init*
+5. Initramfs configuration / generation sources
+- /var/lib/initramfs-tools/*
+- /var/lib/dracut/*
+- /etc/initramfs-tools/*
+- /etc/dracut.conf
+- /etc/dracut.conf.d/*
+- /etc/mkinitcpio.conf
+- /etc/mkinitcpio.conf.d/*
+6. Bootloader / boot configuration
+- /boot/grub/*
+- /boot/grub2/*
+- /boot/extlinux/*
+- /boot/loader/entries/*
+7. Additional kernel-integrity artifacts
+- /boot/vmlinuz-*
+- /boot/System.map-*
+- /boot/config-*
+- /usr/lib/modules/*/modules.dep
+- /usr/lib/modules/*/modules.alias
+- /usr/lib/modules/*/modules.order
+- /usr/lib/modules/*/modules.builtin
+- /usr/lib/modules/*/modules.symbols
+- /lib/modules/*/modules.dep
+8. Kernel installation hooks
+- /etc/kernel/
+- /etc/kernel/postinst.d/*
+- /etc/kernel/install.d/*
+```
 ## 🔍 Features
 
 ## ✅ Comprehensive UEFI Analysis — 80+ read-only checks
